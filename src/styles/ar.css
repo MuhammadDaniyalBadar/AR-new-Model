@@ -1,0 +1,68 @@
+/* WebXR DOM overlay: drawn over the camera feed. */
+.ar {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  color: var(--ink);
+}
+
+.ar__gesture {
+  position: absolute;
+  inset: 0;
+  touch-action: none;
+}
+
+.ar__labels {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.ar__labels .label {
+  pointer-events: none;
+}
+.ar__labels .labels__line {
+  stroke: #fff;
+  stroke-opacity: 0.95;
+}
+
+.ar__top {
+  position: absolute;
+  top: calc(var(--space-3) + var(--safe-top));
+  left: var(--space-3);
+  right: var(--space-3);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.ar__status {
+  flex: 1;
+  padding: var(--space-3) var(--space-4);
+  border-radius: 16px;
+  background: rgb(31 42 30 / 0.72);
+  color: #fff;
+  font-size: var(--t-sm);
+  font-weight: 550;
+}
+.ar[data-state='placed'] .ar__status {
+  background: rgb(31 42 30 / 0.5);
+}
+
+.ar__toolbar {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--space-5) + var(--safe-bottom));
+  display: flex;
+  gap: var(--space-2);
+  transform: translateX(-50%);
+  transition: opacity 0.2s;
+}
+.ar:not([data-state='placed']) .ar__toolbar {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* While AR runs, the regular page should not peek through. */
+html.is-ar body > :not(#ar-overlay):not(#toast) {
+  visibility: hidden;
+}

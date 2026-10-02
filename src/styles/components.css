@@ -1,0 +1,97 @@
+/* ---------- Buttons ---------- */
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: var(--tap);
+  padding: 0 var(--space-4);
+  border: 1.5px solid transparent;
+  border-radius: 999px;
+  font-size: var(--t-sm);
+  font-weight: 650;
+  letter-spacing: -0.005em;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.15s, transform 0.12s, opacity 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.button:active:not(:disabled) {
+  transform: scale(0.97);
+}
+.button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.button--primary {
+  background: var(--ketchup);
+  color: #fff;
+}
+.button--primary:active:not(:disabled) {
+  background: var(--ketchup-press);
+}
+.button--ink {
+  background: var(--ink);
+  color: #fff;
+}
+.button--ghost {
+  background: transparent;
+  border-color: var(--hairline);
+}
+.button--outline {
+  background: transparent;
+  border-color: var(--ink);
+}
+.button--glass {
+  background: rgb(255 255 255 / 0.88);
+  color: var(--ink);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.icon-button {
+  display: inline-grid;
+  place-items: center;
+  width: var(--tap);
+  height: var(--tap);
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.icon-button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+.icon-button--plate {
+  background: rgb(255 255 255 / 0.7);
+}
+.icon-button--glass {
+  background: rgb(255 255 255 / 0.88);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* ---------- Toast ---------- */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(96px + var(--safe-bottom));
+  z-index: 60;
+  max-width: min(92vw, 420px);
+  padding: var(--space-3) var(--space-4);
+  border-radius: 14px;
+  background: var(--ink);
+  color: #fff;
+  font-size: var(--t-sm);
+  transform: translate(-50%, 12px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s, transform 0.25s var(--ease);
+}
+.toast.is-visible {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}

@@ -1,0 +1,38 @@
+:root {
+  /* A pale, cool "plate under a lamp" stage makes warm food colours pop. */
+  --plate-hi: #f8f9f4;
+  --plate-lo: #dce2d5;
+  --ink: #1f2a1e;
+  --ink-2: #4e5b4a;
+  --ketchup: #c7361f;
+  --ketchup-press: #a52a16;
+  --mustard: #e9b12b;
+  --paper: #ffffff;
+  --hairline: rgb(31 42 30 / 0.14);
+  --focus: #1f6feb;
+
+  --font: 'Bricolage Grotesque', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+  /* type scale */
+  --t-xs: 0.8125rem; /* 13 */
+  --t-sm: 0.9375rem; /* 15 */
+  --t-md: 1.0625rem; /* 17 */
+  --t-lg: 1.375rem; /* 22 */
+  --t-xl: 2.125rem; /* 34 */
+  --t-xxl: 2.75rem; /* 44 */
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  --tap: 48px; /* minimum touch target */
+  --radius-sheet: 22px;
+  --radius-label: 7px;
+
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --ease: cubic-bezier(0.22, 0.8, 0.24, 1);
+}

@@ -1,0 +1,27 @@
+.debug {
+  position: fixed;
+  top: calc(8px + var(--safe-top));
+  left: 8px;
+  z-index: 200;
+  max-width: min(92vw, 380px);
+  max-height: 60vh;
+  overflow: auto;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgb(20 24 20 / 0.88);
+  color: #e6efe2;
+  font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.debug summary {
+  cursor: pointer;
+}
+.debug p {
+  margin: 4px 0;
+}
+.debug pre {
+  margin: 6px 0 0;
+  white-space: pre;
+}
+.debug__warn {
+  color: #ffc66d;
+}

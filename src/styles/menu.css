@@ -1,0 +1,60 @@
+/* Prototype menu: stands in for the printed menu's QR codes. */
+.menu {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: calc(var(--space-6) + var(--safe-top)) var(--space-5) calc(var(--space-6) + var(--safe-bottom));
+}
+
+.menu__title {
+  font-size: var(--t-xxl);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.035em;
+  font-variation-settings: 'opsz' 96;
+}
+
+.menu__intro {
+  max-width: 34ch;
+  margin-top: var(--space-3);
+  color: var(--ink-2);
+  font-size: var(--t-md);
+}
+
+.menu__list {
+  margin-top: var(--space-6);
+  border-top: 2px solid var(--ink);
+}
+
+.dish {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--space-2) var(--space-4);
+  padding: var(--space-5) 0;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.dish__name {
+  font-size: var(--t-lg);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.015em;
+}
+
+.dish__summary {
+  margin-top: var(--space-1);
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+  max-width: 40ch;
+}
+
+.dish__price {
+  font-size: var(--t-md);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.dish__cta {
+  grid-column: 1 / -1;
+  justify-self: start;
+  margin-top: var(--space-2);
+}
