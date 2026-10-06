@@ -1,13 +1,14 @@
-import { PRODUCTS } from './products/index.js';
+import restaurant from '@restaurant';
 import { validateProduct } from './productSchema.js';
 
 /**
- * Single access point for product data. Today it reads the bundled files;
+ * Single access point for product data. Today it reads the bundled files of
+ * the restaurant this build is for (restaurants/<id>/, via the @restaurant alias);
  * later it can fetch from an API/CMS without the rest of the app changing,
  * because every method is already async.
  */
 export class ProductRepository {
-  constructor(source = PRODUCTS) {
+  constructor(source = restaurant.products) {
     this.products = new Map();
     for (const product of source) {
       const { errors, warnings } = validateProduct(product);

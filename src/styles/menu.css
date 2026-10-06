@@ -6,6 +6,7 @@
 }
 
 .menu__title {
+  font-family: var(--font-display);
   font-size: var(--t-xxl);
   font-weight: 800;
   line-height: 1;
@@ -20,8 +21,26 @@
   font-size: var(--t-md);
 }
 
-.menu__list {
+.menu__logo {
+  display: block;
+  width: 112px;
+  height: auto;
+  border-radius: 14px;
+}
+
+.menu__group {
   margin-top: var(--space-6);
+}
+
+.menu__group-title {
+  font-family: var(--font-display);
+  font-size: var(--t-lg);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  margin-bottom: var(--space-2);
+}
+
+.menu__list {
   border-top: 2px solid var(--ink);
 }
 
@@ -34,6 +53,7 @@
 }
 
 .dish__name {
+  font-family: var(--font-display);
   font-size: var(--t-lg);
   font-weight: 700;
   line-height: 1.15;

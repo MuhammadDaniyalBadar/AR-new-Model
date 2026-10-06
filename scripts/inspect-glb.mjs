@@ -1,8 +1,8 @@
 /**
  * Prints the node tree of a GLB file so you can map node names to
- * product components in src/data/products/*.js.
+ * product components in restaurants/<id>/products/*.js.
  *
- *   npm run inspect -- public/models/classic-burger.glb
+ *   npm run inspect -- restaurants/demo/public/models/classic-burger.glb
  *
  * Works on any GLB, with no dependencies, by reading the JSON chunk directly.
  */

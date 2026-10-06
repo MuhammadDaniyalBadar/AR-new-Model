@@ -26,6 +26,7 @@
 }
 
 .topbar__name {
+  font-family: var(--font-display);
   overflow: hidden;
   font-size: var(--t-lg);
   font-weight: 750;
@@ -275,6 +276,7 @@
 }
 
 .detail__title {
+  font-family: var(--font-display);
   margin-top: var(--space-1);
   padding-right: 44px;
   font-size: var(--t-xl);

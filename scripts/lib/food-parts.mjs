@@ -1,26 +1,19 @@
 /**
- * Generates detailed, textured burger models from reference photos:
+ * Shared library for building food models procedurally: noise, painted
+ * textures, and parts (buns, patties, cheese, sauces, fried coatings,
+ * packaging...). Each restaurant's dishes live in scripts/models/<id>.mjs.
  *
- *   quadra.glb          Quadra: 4 patties, 4 cheeses, beef salami, onion rings, jalapeños, mayo
- *   classic-burger.glb  Grilled-bun burger with white cheese and red onion
- *   double-crunch.glb   Double smash patty, onion rings, jalapeños, pepperoni, shredded lettuce
- *
- *   npm run models:detailed
- *
- * Everything is procedural (geometry + painted textures), so no photo is
- * copied into the files. These are still stand-ins: for production, use
- * scanned or artist-made models (see docs/ADDING_A_PRODUCT.md).
- *
- * Conventions match the app: meters, origin at bottom centre, one named
+ * Conventions: meters, origin at the bottom centre of the dish, one named
  * node per component part.
  */
 import { writeFileSync, mkdirSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
 import { Canvas, ImageData } from '@napi-rs/canvas';
 import * as THREE from 'three';
+export { THREE };
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+export { mergeGeometries };
 
 /* ------------------------------------------------------------- Node shims */
 
@@ -52,27 +45,27 @@ globalThis.FileReader ??= class {
   }
 };
 
-const OUT_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '../public/models');
-const TAU = Math.PI * 2;
+export const TAU = Math.PI * 2;
 
 /* ------------------------------------------------------------ randomness */
 
-let seed = 4242;
-const rand = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
-const range = (a, b) => a + rand() * (b - a);
+export let seed = 4242;
+export const setSeed = (s) => (seed = s);
+export const rand = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
+export const range = (a, b) => a + rand() * (b - a);
 
-function hash3(x, y, z, s = 0) {
+export function hash3(x, y, z, s = 0) {
   let h = Math.imul(x, 374761393) ^ Math.imul(y, 668265263) ^ Math.imul(z, 1274126177) ^ Math.imul(s, 1442695041);
   h = Math.imul(h ^ (h >>> 13), 1274126177);
   return ((h ^ (h >>> 16)) >>> 0) / 4294967295;
 }
-const fade = (t) => t * t * (3 - 2 * t);
-const lerp = (a, b, t) => a + (b - a) * t;
-const clamp01 = (v) => Math.min(1, Math.max(0, v));
-const smooth = (a, b, v) => fade(clamp01((v - a) / (b - a)));
+export const fade = (t) => t * t * (3 - 2 * t);
+export const lerp = (a, b, t) => a + (b - a) * t;
+export const clamp01 = (v) => Math.min(1, Math.max(0, v));
+export const smooth = (a, b, v) => fade(clamp01((v - a) / (b - a)));
 
 /** 3D value noise in [0, 1]. */
-function noise3(x, y, z, s = 0) {
+export function noise3(x, y, z, s = 0) {
   const xi = Math.floor(x), yi = Math.floor(y), zi = Math.floor(z);
   const u = fade(x - xi), v = fade(y - yi), w = fade(z - zi);
   const h = (a, b, c) => hash3(xi + a, yi + b, zi + c, s);
@@ -82,7 +75,7 @@ function noise3(x, y, z, s = 0) {
     w,
   );
 }
-function fbm(x, y, z, octaves = 4, s = 0) {
+export function fbm(x, y, z, octaves = 4, s = 0) {
   let sum = 0, amp = 0.5, f = 1, norm = 0;
   for (let i = 0; i < octaves; i++) {
     sum += noise3(x * f, y * f, z * f, s + i * 17) * amp;
@@ -93,22 +86,22 @@ function fbm(x, y, z, octaves = 4, s = 0) {
   return sum / norm;
 }
 /** Noise that wraps around an angle (seamless at 0 / 2π). */
-const angNoise = (theta, freq, s = 0, oct = 3) => fbm(Math.cos(theta) * freq, Math.sin(theta) * freq, 0.5, oct, s);
+export const angNoise = (theta, freq, s = 0, oct = 3) => fbm(Math.cos(theta) * freq, Math.sin(theta) * freq, 0.5, oct, s);
 
 /* ------------------------------------------------------------- colours */
 
-const hex = (h) => {
+export const hex = (h) => {
   const n = parseInt(h.slice(1), 16);
   return [(n >> 16) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];
 };
-const mix = (a, b, t) => [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)];
-const shade = (c, k) => [c[0] * k, c[1] * k, c[2] * k];
+export const mix = (a, b, t) => [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)];
+export const shade = (c, k) => [c[0] * k, c[1] * k, c[2] * k];
 
 /* ------------------------------------------------------------ textures */
 
-const TEX = { color: 1024, small: 512 };
+export const TEX = { color: 1024, small: 512 };
 
-function canvasFromPixels(w, h, fill) {
+export function canvasFromPixels(w, h, fill) {
   const c = new OffscreenCanvas(w, h);
   const data = new Uint8ClampedArray(w * h * 4);
   for (let py = 0; py < h; py++) {
@@ -127,7 +120,7 @@ function canvasFromPixels(w, h, fill) {
   return c;
 }
 
-function makeTexture(canvas, srgb) {
+export function makeTexture(canvas, srgb) {
   const t = new THREE.Texture(canvas);
   t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
   t.wrapS = THREE.RepeatWrapping;
@@ -138,7 +131,7 @@ function makeTexture(canvas, srgb) {
 }
 
 /** Paint colour + normal maps from functions of a surface point. */
-function paintMaps({ w, h, point, color, height, strength = 1.5 }) {
+export function paintMaps({ w, h, point, color, height, strength = 1.5 }) {
   const map = makeTexture(canvasFromPixels(w, h, (u, v) => color(point(u, v), u, v)), true);
   if (!height) return { map };
   const H = new Float32Array(w * h);
@@ -159,7 +152,7 @@ function paintMaps({ w, h, point, color, height, strength = 1.5 }) {
   return { map, normalMap: makeTexture(normalCanvas, false) };
 }
 
-function material({ map, normalMap, color = '#ffffff', roughness = 0.7, clearcoat = 0, side, normalScale = 1 }) {
+export function material({ map, normalMap, color = '#ffffff', roughness = 0.7, clearcoat = 0, side, normalScale = 1 }) {
   const params = { color, roughness, metalness: 0, map: map ?? null, normalMap: normalMap ?? null };
   if (side) params.side = side;
   const m = clearcoat
@@ -172,7 +165,7 @@ function material({ map, normalMap, color = '#ffffff', roughness = 0.7, clearcoa
 /* ------------------------------------------------------------ geometry */
 
 /** Resample a 2D profile evenly by arc length so lathe UV v ≈ distance. */
-function resample(points, n) {
+export function resample(points, n) {
   const segs = [];
   let total = 0;
   for (let i = 1; i < points.length; i++) {
@@ -191,7 +184,7 @@ function resample(points, n) {
 }
 
 /** Point on a lathe surface for (u, v) texture coordinates. */
-function lathePoint(profile) {
+export function lathePoint(profile) {
   return (u, v) => {
     const f = v * (profile.length - 1);
     const i = Math.min(profile.length - 2, Math.floor(f));
@@ -204,7 +197,7 @@ function lathePoint(profile) {
 }
 
 /** Make normals continuous across UV seams and poles. */
-function smoothSeams(geo) {
+export function smoothSeams(geo) {
   geo.computeVertexNormals();
   const pos = geo.attributes.position, nor = geo.attributes.normal;
   const groups = new Map();
@@ -228,7 +221,7 @@ function smoothSeams(geo) {
  * normal (both THREE.Vector3) and moves the point in place. Deformation is
  * a function of position only, so seam vertices stay welded.
  */
-function lathe(profile, segments, deform) {
+export function lathe(profile, segments, deform) {
   const geo = new THREE.LatheGeometry(profile.map(([r, y]) => new THREE.Vector2(r, y)), segments);
   if (deform) {
     geo.computeVertexNormals();
@@ -244,7 +237,7 @@ function lathe(profile, segments, deform) {
   return smoothSeams(geo);
 }
 
-const place = (geo, { x = 0, y = 0, z = 0, rx = 0, ry = 0, rz = 0, sx = 1, sy = 1, sz = 1 } = {}) =>
+export const place = (geo, { x = 0, y = 0, z = 0, rx = 0, ry = 0, rz = 0, sx = 1, sy = 1, sz = 1 } = {}) =>
   geo.applyMatrix4(
     new THREE.Matrix4().compose(
       new THREE.Vector3(x, y, z),
@@ -253,7 +246,7 @@ const place = (geo, { x = 0, y = 0, z = 0, rx = 0, ry = 0, rz = 0, sx = 1, sy = 
     ),
   );
 
-function node(name, ...meshes) {
+export function node(name, ...meshes) {
   const g = new THREE.Group();
   g.name = name;
   meshes.forEach((m) => g.add(m));
@@ -266,7 +259,7 @@ function node(name, ...meshes) {
  * Top bun: dome from rim (v=0) to crown (v=1), plus a flat cut face.
  * style: 'soft' (pale, seeded), 'grilled' (scored, char lines), 'brioche' (glossy).
  */
-function topBun({ name = 'Top_Bun', radius, height, style, seeds = 0 }) {
+export function topBun({ name = 'Top_Bun', radius, height, style, seeds = 0 }) {
   const R = radius, H = height;
   const raw = [[R * 0.9, 0], [R * 0.99, H * 0.05], [R, H * 0.16]];
   for (let i = 1; i <= 24; i++) {
@@ -296,6 +289,8 @@ function topBun({ name = 'Top_Bun', radius, height, style, seeds = 0 }) {
     soft: { base: hex('#efe3c9'), crown: hex('#d9ab6b'), deep: hex('#c48a45') },
     grilled: { base: hex('#ebc58a'), crown: hex('#cf8e45'), deep: hex('#9d5c26') },
     brioche: { base: hex('#ecc283'), crown: hex('#c2802f'), deep: hex('#8a5016') },
+    potato: { base: hex('#f3cf92'), crown: hex('#df9343'), deep: hex('#c8752f') },
+    dusted: { base: hex('#f1cf96'), crown: hex('#de9a4a'), deep: hex('#c27531') },
   }[style];
 
   const point = lathePoint(profile);
@@ -303,7 +298,7 @@ function topBun({ name = 'Top_Bun', radius, height, style, seeds = 0 }) {
     w: TEX.color, h: 512, point,
     color: ([x, y, z], u, v) => {
       const n = fbm(x * 90, y * 90, z * 90, 4);
-      const brown = smooth(0.12, style === 'brioche' ? 0.6 : 0.85, v) * (0.75 + n * 0.5);
+      const brown = smooth(0.12, style === 'brioche' || style === 'potato' ? 0.6 : 0.85, v) * (0.75 + n * 0.5);
       let c = mix(palette.base, palette.crown, clamp01(brown));
       c = mix(c, palette.deep, smooth(0.62, 0.95, v) * smooth(0.45, 0.8, n) * 0.7);
       if (style === 'grilled') {
@@ -317,6 +312,13 @@ function topBun({ name = 'Top_Bun', radius, height, style, seeds = 0 }) {
         c = mix(c, hex('#3d2210'), bar * top * broken * (0.6 + fbm(x * 200, y * 200, z * 200, 2, 7) * 0.4));
         c = mix(c, hex('#5b3416'), smooth(0.75, 0.9, fbm(x * 30, y * 30, z * 30, 3, 8)) * 0.4 * top);
       }
+      if (style === 'dusted') {
+        // Toasted crumb dusting on the crown (orange and pale flecks)
+        const fleck = hash3(Math.floor(x * 2600), Math.floor(y * 2600), Math.floor(z * 2600), 77);
+        const on = smooth(0.25, 0.55, v);
+        if (fleck > 0.86) c = mix(c, hex('#e07b25'), on * 0.85);
+        else if (fleck < 0.08) c = mix(c, hex('#f8e6b8'), on * 0.8);
+      }
       // Flour dust / speckle
       c = shade(c, 0.94 + hash3(Math.floor(x * 4000), Math.floor(y * 4000), Math.floor(z * 4000)) * 0.08);
       return c;
@@ -326,7 +328,12 @@ function topBun({ name = 'Top_Bun', radius, height, style, seeds = 0 }) {
   });
   const crust = new THREE.Mesh(
     geo,
-    material({ ...maps, roughness: style === 'brioche' ? 0.42 : 0.7, clearcoat: style === 'brioche' ? 0.55 : 0, normalScale: 0.6 }),
+    material({
+      ...maps,
+      roughness: { brioche: 0.42, potato: 0.55 }[style] ?? 0.7,
+      clearcoat: { brioche: 0.55, potato: 0.2 }[style] ?? 0,
+      normalScale: 0.6,
+    }),
   );
 
   // Cut face (crumb)
@@ -372,7 +379,7 @@ function topBun({ name = 'Top_Bun', radius, height, style, seeds = 0 }) {
 }
 
 /** Bottom bun: crust shell with a toasted cut face on top. */
-function bottomBun({ name = 'Bottom_Bun', radius, height, style }) {
+export function bottomBun({ name = 'Bottom_Bun', radius, height, style }) {
   const R = radius, H = height;
   const raw = [[0, 0], [R * 0.82, 0], [R * 0.96, H * 0.18], [R, H * 0.55], [R * 0.985, H * 0.85], [R * 0.95, H]];
   const profile = resample(raw, 40);
@@ -387,6 +394,8 @@ function bottomBun({ name = 'Bottom_Bun', radius, height, style }) {
     soft: [hex('#e9cf9f'), hex('#d39c55')],
     grilled: [hex('#ecd3a0'), hex('#d2a05e')],
     brioche: [hex('#e7b77a'), hex('#c47a33')],
+    potato: [hex('#f0c886'), hex('#d88c3c')],
+    dusted: [hex('#f2d39c'), hex('#dca55a')],
   }[style];
   const maps = paintMaps({
     w: TEX.color, h: 256, point: lathePoint(profile),
@@ -410,7 +419,7 @@ function bottomBun({ name = 'Bottom_Bun', radius, height, style }) {
     w: TEX.small, h: 128, point: lathePoint(cutProfile),
     color: ([x, , z], u, v) => {
       const n = fbm(x * 220, 0, z * 220, 4, 41);
-      const toast = style === 'grilled' ? 0.9 : style === 'brioche' ? 0.55 : 0.35;
+      const toast = style === 'grilled' ? 0.9 : style === 'brioche' || style === 'potato' ? 0.55 : 0.35;
       let c = mix(hex('#f1dfb8'), hex('#c98a45'), clamp01(n * toast * 1.4 + smooth(0.7, 1, v) * 0.4));
       if (style === 'grilled') {
         c = mix(hex('#c58a4c'), hex('#6e3e1b'), smooth(0.35, 0.75, n));
@@ -425,7 +434,7 @@ function bottomBun({ name = 'Bottom_Bun', radius, height, style }) {
 }
 
 /** Beef patty. style: 'chunky' (thick, lumpy) or 'smash' (thin, lacy crust edge). */
-function patty({ name, radius, height, style = 'chunky', pepper = false, s = 0 }) {
+export function patty({ name, radius, height, style = 'chunky', pepper = false, s = 0 }) {
   const R = radius, H = height;
   const raw = [[0, 0], [R * 0.85, 0], [R * 0.98, H * 0.2], [R, H * 0.5], [R * 0.98, H * 0.8], [R * 0.85, H], [0, H]];
   const profile = resample(raw, 40);
@@ -451,7 +460,7 @@ function patty({ name, radius, height, style = 'chunky', pepper = false, s = 0 }
 }
 
 const pattyMaps = new Map();
-function paintPattyMaps(profile, smash, pepper, s = 0) {
+export function paintPattyMaps(profile, smash, pepper, s = 0) {
   const point = lathePoint(profile);
   const maps = paintMaps({
     w: TEX.color, h: 512, point,
@@ -472,7 +481,7 @@ function paintPattyMaps(profile, smash, pepper, s = 0) {
 }
 
 /** Square cheese slice draped over whatever is under it. */
-function cheese({ name, size, dropFrom, rot = 0, color = '#f6b41c', s = 0 }) {
+export function cheese({ name, size, dropFrom, rot = 0, color = '#f6b41c', s = 0 }) {
   const seg = 32;
   const geo = new THREE.BoxGeometry(size, 0.0018, size, seg, 1, seg);
   const pos = geo.attributes.position;
@@ -500,7 +509,7 @@ function cheese({ name, size, dropFrom, rot = 0, color = '#f6b41c', s = 0 }) {
  * Thin irregular "sheet" built on a lathe disc: sauces, lettuce leaves.
  * radiusFn(a) → outline scale, dropFn(r, a) → vertical sag.
  */
-function sheet({ radius, thickness, rings = 18, segments = 96, outline, sag, ruffle }) {
+export function sheet({ radius, thickness, rings = 18, segments = 96, outline, sag, ruffle }) {
   const R = radius, T = thickness;
   const raw = [[0, 0], [R * 0.98, 0], [R, T * 0.5], [R * 0.98, T * 0.9], [0, T]];
   const profile = resample(raw, rings * 2);
@@ -515,7 +524,7 @@ function sheet({ radius, thickness, rings = 18, segments = 96, outline, sag, ruf
   });
 }
 
-function sauce({ name, radius, color, rimFrom, drips = 0.6, roughness = 0.25, s = 0 }) {
+export function sauce({ name, radius, color, rimFrom, drips = 0.6, roughness = 0.25, s = 0 }) {
   const geo = sheet({
     radius,
     thickness: 0.004,
@@ -529,7 +538,7 @@ function sauce({ name, radius, color, rimFrom, drips = 0.6, roughness = 0.25, s 
   return node(name, new THREE.Mesh(geo, material({ color, roughness, clearcoat: 0.5 })));
 }
 
-function lettuceLeaf({ name, radius, rimFrom, s = 0 }) {
+export function lettuceLeaf({ name, radius, rimFrom, s = 0 }) {
   const profileR = radius;
   const geo = sheet({
     radius: profileR,
@@ -565,7 +574,7 @@ function lettuceLeaf({ name, radius, rimFrom, s = 0 }) {
 }
 
 /** Shredded iceberg: hundreds of thin curled ribbons. */
-function shreddedLettuce({ name, radius, height, count = 220 }) {
+export function shreddedLettuce({ name, radius, height, count = 220 }) {
   const light = [], dark = [];
   for (let i = 0; i < count; i++) {
     const g = new THREE.PlaneGeometry(range(0.018, 0.04), range(0.003, 0.006), 8, 1);
@@ -589,7 +598,13 @@ function shreddedLettuce({ name, radius, height, count = 220 }) {
 
 /** Breaded onion ring: displaced torus with crumb texture. */
 let ringMaps = null;
-function onionRing({ R, tube, s = 0 }) {
+export function resetCaches() {
+  ringMaps = null;
+  pattyMaps.clear();
+  filletMaps?.clear();
+  nuggetMat = null;
+}
+export function onionRing({ R, tube, s = 0 }) {
   const geo = new THREE.TorusGeometry(R, tube, 28, 96);
   geo.computeVertexNormals();
   const pos = geo.attributes.position, nor = geo.attributes.normal;
@@ -628,7 +643,7 @@ function onionRing({ R, tube, s = 0 }) {
 }
 
 /** Jalapeño slices. long=true for diagonal cut pickled strips. */
-function jalapenos({ name, count, area, y, long = false, skin = '#4f6a1c', flesh = ['#8fa83a', '#a9b955'], s = 0 }) {
+export function jalapenos({ name, count, area, y, long = false, skin = '#4f6a1c', flesh = ['#8fa83a', '#a9b955'], radius = [0.009, 0.0125], thickness = 0.0028, spread = 0.35, s = 0 }) {
   const capMaps = paintMaps({
     w: TEX.small, h: TEX.small, point: (u, v) => [u - 0.5, 0, v - 0.5],
     color: ([x, , z]) => {
@@ -648,20 +663,25 @@ function jalapenos({ name, count, area, y, long = false, skin = '#4f6a1c', flesh
   const g = new THREE.Group();
   g.name = name;
   for (let i = 0; i < count; i++) {
-    const r0 = range(0.009, 0.0125);
-    const geo = new THREE.CylinderGeometry(r0, r0, 0.0028, 32, 1);
+    const r0 = range(radius[0], radius[1]);
+    const geo = new THREE.CylinderGeometry(r0, r0, thickness, 32, 1);
     if (long) geo.scale(2.4, 1, 1);
     const m = new THREE.Mesh(geo, [sideMat, capMat, capMat]);
     const a = range(0, TAU), rr = Math.sqrt(rand()) * area;
     m.position.set(Math.sin(a) * rr, y + range(-0.003, 0.004), Math.cos(a) * rr);
-    m.rotation.set(range(-0.35, 0.35), range(0, TAU), range(-0.35, 0.35));
+    m.rotation.set(range(-spread, spread), range(0, TAU), range(-spread, spread));
     g.add(m);
   }
   return g;
 }
 
+/** Dill pickle chips (same construction as jalapeño slices, bigger and paler). */
+export function pickles({ name = 'Pickles', count, area, y = 0, s = 0, radius = [0.014, 0.017] }) {
+  return jalapenos({ name, count, area, y, skin: '#4f5d1d', flesh: ['#a8a947', '#bdb95c'], radius, thickness: 0.003, spread: 0.18, s });
+}
+
 /** Cured meat slices (beef salami / pepperoni), optionally folded. */
-function meatSlices({ name, count, radius, fold = 0, area = 0, color = '#c2433a', s = 0 }) {
+export function meatSlices({ name, count, radius, fold = 0, area = 0, color = '#c2433a', s = 0 }) {
   const profile = resample([[0, 0], [radius, 0], [radius * 1.01, 0.0012], [radius, 0.0024], [0, 0.0026]], 30);
   const maps = paintMaps({
     w: TEX.small, h: 128, point: lathePoint(profile),
@@ -694,7 +714,7 @@ function meatSlices({ name, count, radius, fold = 0, area = 0, color = '#c2433a'
 }
 
 /** Thin raw red-onion rings. */
-function redOnion({ name, count, area }) {
+export function redOnion({ name, count, area }) {
   const pt = (u, v) => [u, v, 0];
   const maps = paintMaps({
     w: 256, h: 128, point: pt,
@@ -721,7 +741,7 @@ function redOnion({ name, count, area }) {
 }
 
 /** Soft white cheese slab (goat/cream cheese), squashed and crumbly. */
-function whiteCheese({ name, radius, height }) {
+export function whiteCheese({ name, radius, height }) {
   const R = radius, H = height;
   const profile = resample([[0, 0], [R * 0.9, 0], [R, H * 0.5], [R * 0.9, H], [0, H]], 28);
   const geo = lathe(profile, 96, (p, n) => {
@@ -736,141 +756,289 @@ function whiteCheese({ name, radius, height }) {
   return node(name, new THREE.Mesh(geo, material({ color: '#f4f0e6', roughness: 0.78 })));
 }
 
-/* ============================================================== dishes */
-
-/** Quadra: tall stack with four patties. Reference: user photo 1. */
-function quadra() {
-  seed = 101;
-  const root = new THREE.Group();
-  root.name = 'Quadra';
-  let y = 0;
-  const add = (obj, at) => {
-    obj.position.y = at;
-    root.add(obj);
-  };
-
-  add(bottomBun({ radius: 0.062, height: 0.024, style: 'soft' }), y);
-  y += 0.024;
-  const ket = sauce({ name: 'Ketchup', radius: 0.05, color: '#8f1b12', rimFrom: 0.06, s: 1 });
-  add(ket, y - 0.001);
-  add(lettuceLeaf({ name: 'Lettuce', radius: 0.064, rimFrom: 0.055, s: 2 }), y + 0.002);
-  y += 0.008;
-  for (let i = 1; i <= 4; i++) {
-    const p = patty({ name: `Patty_${i}`, radius: 0.064, height: 0.017, style: 'chunky', s: i * 7 });
-    p.rotation.y = i * 1.3;
-    add(p, y);
-    y += 0.017;
-    add(cheese({ name: `Cheese_${i}`, size: 0.118, dropFrom: 0.06, rot: i * 0.5, s: i }), y + 0.0005);
-    y += 0.0025;
-  }
-  add(meatSlices({ name: 'Beef_Salami', count: 1, radius: 0.057, color: '#c44a3c', s: 3 }), y);
-  y += 0.003;
-
-  const rings = node('Onion_Rings');
-  const r1 = onionRing({ R: 0.03, tube: 0.0095 });
-  r1.position.set(-0.03, 0.01, 0.006);
-  r1.rotation.set(0.1, 0, 0.14);
-  const r2 = onionRing({ R: 0.031, tube: 0.0095 });
-  r2.position.set(0.029, 0.012, -0.008);
-  r2.rotation.set(-0.06, 0, -0.16);
-  rings.add(r1, r2);
-  add(rings, y);
-
-  add(jalapenos({ name: 'Jalapenos', count: 10, area: 0.05, y: 0.019, long: true, skin: '#3f4a14', flesh: ['#7d7f2c', '#9a9440'], s: 4 }), y);
-  y += 0.024;
-  add(sauce({ name: 'Mayo', radius: 0.045, color: '#f3efe3', rimFrom: 0.035, drips: 1.2, roughness: 0.3, s: 5 }), y);
-  y += 0.002;
-  add(topBun({ radius: 0.064, height: 0.052, style: 'soft', seeds: 160 }), y);
-  return root;
-}
-
-/** Classic: grilled bun, patty, white cheese, red onion. Reference: user photo 2. */
-function classic() {
-  seed = 202;
-  const root = new THREE.Group();
-  root.name = 'Classic_Burger';
-  let y = 0;
-  const add = (obj, at) => {
-    obj.position.y = at;
-    root.add(obj);
-  };
-  add(bottomBun({ radius: 0.06, height: 0.026, style: 'grilled' }), y);
-  y += 0.026;
-  const p = patty({ name: 'Patty', radius: 0.053, height: 0.024, style: 'chunky', pepper: true, s: 3 });
-  add(p, y);
-  y += 0.024;
-  add(whiteCheese({ name: 'White_Cheese', radius: 0.05, height: 0.006 }), y - 0.001);
-  y += 0.005;
-  add(redOnion({ name: 'Red_Onion', count: 7, area: 0.03 }), y);
-  y += 0.006;
-  add(topBun({ radius: 0.062, height: 0.046, style: 'grilled' }), y);
-  return root;
-}
-
-/** Double Crunch: smash patties, onion rings, jalapeños. Reference: user photo 3. */
-function doubleCrunch() {
-  seed = 303;
-  const root = new THREE.Group();
-  root.name = 'Double_Crunch';
-  let y = 0;
-  const add = (obj, at) => {
-    obj.position.y = at;
-    root.add(obj);
-  };
-  add(bottomBun({ radius: 0.06, height: 0.026, style: 'brioche' }), y);
-  y += 0.026;
-  add(sauce({ name: 'Pink_Sauce', radius: 0.05, color: '#f0b9a2', rimFrom: 0.05, roughness: 0.35, s: 6 }), y - 0.001);
-  add(shreddedLettuce({ name: 'Lettuce', radius: 0.06, height: 0.012, count: 320 }), y + 0.001);
-  y += 0.012;
-  for (let i = 1; i <= 2; i++) {
-    const p = patty({ name: `Patty_${i}`, radius: 0.066, height: 0.012, style: 'smash', s: 20 + i * 5 });
-    p.rotation.y = i * 2.1;
-    add(p, y);
-    y += 0.012;
-    add(cheese({ name: `Cheese_${i}`, size: 0.108, dropFrom: 0.058, rot: 0.4 + i * 0.7, s: 10 + i }), y + 0.0004);
-    y += 0.0024;
-  }
-  add(meatSlices({ name: 'Pepperoni', count: 4, radius: 0.03, fold: 14, area: 0.028, color: '#b0624f', s: 7 }), y + 0.002);
-  y += 0.007;
-  add(jalapenos({ name: 'Jalapenos', count: 9, area: 0.05, y: 0.001, skin: '#4a6119', flesh: ['#86973a', '#a3a64e'], s: 8 }), y);
-  y += 0.004;
-  const rings = node('Onion_Rings');
-  const r1 = onionRing({ R: 0.03, tube: 0.011 });
-  r1.position.set(-0.03, 0.011, 0);
-  r1.rotation.set(0, 0, 0.18);
-  const r2 = onionRing({ R: 0.03, tube: 0.011 });
-  r2.position.set(0.03, 0.011, 0.002);
-  r2.rotation.set(0, 0, -0.18);
-  rings.add(r1, r2);
-  add(rings, y);
-  y += 0.024;
-  add(sauce({ name: 'Garlic_Sauce', radius: 0.05, color: '#efe9de', rimFrom: 0.04, drips: 1.4, roughness: 0.3, s: 9 }), y);
-  y += 0.002;
-  add(topBun({ radius: 0.062, height: 0.06, style: 'brioche' }), y);
-  return root;
-}
-
 /* ============================================================== export */
 
-const exporter = new GLTFExporter();
-mkdirSync(OUT_DIR, { recursive: true });
+/** Build and write each model: { 'file.glb': () => THREE.Group } into outDir. */
+export async function exportModels(models, outDir) {
+  const exporter = new GLTFExporter();
+  mkdirSync(outDir, { recursive: true });
+  for (const [file, build] of Object.entries(models)) {
+    resetCaches();
+    const root = build();
+    const box = new THREE.Box3().setFromObject(root, true);
+    const size = box.getSize(new THREE.Vector3());
+    const glb = await exporter.parseAsync(root, { binary: true, maxTextureSize: 1024 });
+    writeFileSync(resolve(outDir, file), Buffer.from(glb));
+    console.log(
+      `✔ ${file.padEnd(28)} ${(glb.byteLength / 1024).toFixed(0).padStart(5)} KB  ` +
+        `${(size.x * 100).toFixed(1)} × ${(size.y * 100).toFixed(1)} × ${(size.z * 100).toFixed(1)} cm  ` +
+        `nodes: ${root.children.map((c) => c.name).join(', ')}`,
+    );
+  }
+}
 
-const models = {
-  'quadra.glb': quadra,
-  'classic-burger.glb': classic,
-  'double-crunch.glb': doubleCrunch,
-};
+/* ======================================================== more parts */
 
-for (const [file, build] of Object.entries(models)) {
-  ringMaps = null;
-  pattyMaps.clear();
-  const root = build();
-  const box = new THREE.Box3().setFromObject(root);
-  const size = box.getSize(new THREE.Vector3());
-  const glb = await exporter.parseAsync(root, { binary: true, maxTextureSize: 1024 });
-  writeFileSync(resolve(OUT_DIR, file), Buffer.from(glb));
-  console.log(
-    `✔ ${file.padEnd(20)} ${(glb.byteLength / 1024).toFixed(0).padStart(5)} KB  ` +
-      `${(size.x * 100).toFixed(1)} × ${(size.y * 100).toFixed(1)} cm  nodes: ${root.children.map((c) => c.name).join(', ')}`,
+/**
+ * Fried / breaded chicken fillet.
+ *   crispy:    flaky, craggy golden coating (classic fried chicken)
+ *   nashville: tight craggy coating, deep red-brown with spice
+ *   smooth:    fine-crumb breaded patty (nugget-style coating)
+ */
+const filletMaps = new Map();
+export function friedFillet({ name, width, depth, height, style = 'crispy', s = 0 }) {
+  const H = height;
+  const raw = [[0, 0], [0.85, 0], [0.98, H * 0.25], [1, H * 0.5], [0.98, H * 0.75], [0.85, H], [0, H]];
+  const profile = resample(raw, 40);
+  const P = {
+    crispy: { edge: 0.22, edgeF: 7, crag: 0.006, cragF: 70, crumb: 0.0016 },
+    nashville: { edge: 0.26, edgeF: 6, crag: 0.0055, cragF: 95, crumb: 0.0018 },
+    smooth: { edge: 0.05, edgeF: 2, crag: 0.0006, cragF: 60, crumb: 0.0005 },
+  }[style];
+  const geo = lathe(profile, 112, (p, n) => {
+    const a = Math.atan2(p.x, p.z), r = Math.hypot(p.x, p.z);
+    const sc = 1 + (angNoise(a, P.edgeF, 200 + s, 3) - 0.5) * P.edge * smooth(0.5, 1, r);
+    p.x *= sc * (width / 2);
+    p.z *= sc * (depth / 2);
+    // Ridged noise = sharp craggy peaks of fried batter
+    const rn = 1 - Math.abs(fbm(p.x * P.cragF, p.y * P.cragF, p.z * P.cragF, 3, 201 + s) * 2 - 1);
+    const crumb = (fbm(p.x * 380, p.y * 380, p.z * 380, 2, 202 + s) - 0.5) * P.crumb;
+    p.addScaledVector(n.set(n.x * (width / 2), n.y, n.z * (depth / 2)).normalize(), rn * rn * P.crag + crumb);
+  });
+  const pal = {
+    crispy: ['#dfa863', '#a86529', '#f2cb8a'],
+    nashville: ['#9b3414', '#5a1a0b', '#c4581f'],
+    smooth: ['#ec8f3c', '#c4601d', '#f6b464'],
+  }[style];
+  const key = `${style}:${width}:${depth}:${H}`;
+  if (!filletMaps.has(key)) {
+    const point = (u, v) => {
+      const [x, y, z] = lathePoint(profile)(u, v);
+      return [x * (width / 2), y, z * (depth / 2)];
+    };
+    const maps = paintMaps({
+      w: TEX.color, h: 512, point,
+      color: ([x, y, z]) => {
+        const n1 = fbm(x * 160, y * 160, z * 160, 4, 210 + s);
+        const n2 = noise3(x * 900, y * 900, z * 900, 211 + s);
+        let c = mix(hex(pal[0]), hex(pal[1]), smooth(0.4, 0.78, n1));
+        c = mix(c, hex(pal[2]), smooth(0.68, 0.92, n2) * 0.55);
+        if (style === 'nashville' && hash3(Math.floor(x * 1600), Math.floor(y * 1600), Math.floor(z * 1600), 212) > 0.97) c = hex('#2b0b05');
+        return c;
+      },
+      height: ([x, y, z]) => fbm(x * 520, y * 520, z * 520, 2, 213 + s),
+      strength: style === 'smooth' ? 2.5 : 3.5,
+    });
+    maps.mat = material({ ...maps, roughness: style === 'nashville' ? 0.45 : 0.6, clearcoat: style === 'nashville' ? 0.35 : 0, normalScale: 1.2 });
+    filletMaps.set(key, maps);
+  }
+  return node(name, new THREE.Mesh(geo, filletMaps.get(key).mat));
+}
+
+/** Thick griddled toast slice (Texas toast), as a rounded slab. */
+export function toastSlab({ name, width, depth, height, s = 0 }) {
+  const r = Math.min(height * 0.45, 0.008);
+  const geo = new THREE.BoxGeometry(width, height, depth, 28, 6, 28);
+  const pos = geo.attributes.position;
+  const hx = width / 2 - r, hy = height / 2 - r, hz = depth / 2 - r;
+  const p = new THREE.Vector3(), inner = new THREE.Vector3();
+  for (let i = 0; i < pos.count; i++) {
+    p.fromBufferAttribute(pos, i);
+    inner.set(Math.max(-hx, Math.min(hx, p.x)), Math.max(-hy, Math.min(hy, p.y)), Math.max(-hz, Math.min(hz, p.z)));
+    const d = p.clone().sub(inner);
+    if (d.lengthSq() > 0) p.copy(inner).add(d.normalize().multiplyScalar(r));
+    // Bread isn't perfectly flat
+    p.y += (fbm(p.x * 30, 0, p.z * 30, 2, 220 + s) - 0.5) * 0.002 + (p.y > 0 ? 0.0015 * (1 - (p.x / width) ** 2 * 4) : 0);
+    p.y += height / 2;
+    pos.setXYZ(i, p.x, p.y, p.z);
+  }
+  geo.computeVertexNormals();
+  const face = paintMaps({
+    w: TEX.small, h: TEX.small, point: (u, v) => [u * width, 0, v * depth],
+    color: ([x, , z], u, v) => {
+      const n = fbm(x * 70, 0, z * 70, 4, 221 + s);
+      const edge = Math.min(u, 1 - u, v, 1 - v);
+      let c = mix(hex('#e3a65c'), hex('#b8682b'), smooth(0.25, 0.7, n) * smooth(0.01, 0.12, edge));
+      c = mix(c, hex('#7c3d15'), smooth(0.6, 0.82, fbm(x * 160, 0, z * 160, 3, 222 + s)) * 0.7);
+      c = mix(c, hex('#f0c27e'), (1 - smooth(0.0, 0.05, edge)) * 0.6); // paler crust rim
+      return shade(c, 0.95 + hash3(Math.floor(x * 3000), 0, Math.floor(z * 3000)) * 0.08);
+    },
+    height: ([x, , z]) => fbm(x * 400, 0, z * 400, 3, 223 + s),
+    strength: 2,
+  });
+  const faceMat = material({ ...face, roughness: 0.5, clearcoat: 0.25, normalScale: 0.7 });
+  const sideMat = material({ color: '#e7b979', roughness: 0.75 });
+  // BoxGeometry groups: +x, -x, +y, -y, +z, -z
+  return node(name, new THREE.Mesh(geo, [sideMat, sideMat, faceMat, faceMat, sideMat, sideMat]));
+}
+
+/** Creamy mushroom sauce: a thick sauce layer with sliced mushrooms in it. */
+export function mushroomSauce({ name, radius, rimFrom, s = 0 }) {
+  const base = sauce({ name, radius, color: '#cdb197', rimFrom, drips: 0.9, roughness: 0.35, s });
+  base.children[0].geometry.scale(1, 1.8, 1);
+  const shape = new THREE.Shape();
+  // Mushroom slice silhouette: domed cap with a short stem
+  shape.moveTo(-0.0035, -0.008);
+  shape.lineTo(-0.003, -0.001);
+  shape.absellipse(0, 0, 0.011, 0.007, Math.PI, 0, true);
+  shape.lineTo(0.003, -0.001);
+  shape.lineTo(0.0035, -0.008);
+  shape.lineTo(-0.0035, -0.008);
+  const parts = [];
+  for (let i = 0; i < 16; i++) {
+    const g = new THREE.ExtrudeGeometry(shape, { depth: 0.0022, bevelEnabled: true, bevelThickness: 0.0006, bevelSize: 0.0006, bevelSegments: 2, curveSegments: 10 });
+    const k = range(0.75, 1.15);
+    g.scale(k, k, 1);
+    const a = range(0, TAU), r = Math.sqrt(rand()) * radius * 0.85;
+    place(g, { x: Math.sin(a) * r, y: range(0.002, 0.008), z: Math.cos(a) * r, rx: -Math.PI / 2 + range(-0.5, 0.5), ry: range(0, TAU), rz: range(-0.3, 0.3) });
+    parts.push(g);
+  }
+  base.add(new THREE.Mesh(mergeGeometries(parts), material({ color: '#b8987a', roughness: 0.4, clearcoat: 0.5 })));
+  return base;
+}
+
+/** Sautéed / caramelised onion strands, or raw onion slivers. */
+export function onionStrands({ name, count, radius, height, colors, tube = 0.0014, roughness = 0.35, clearcoat = 0.5 }) {
+  const buckets = colors.map(() => []);
+  for (let i = 0; i < count; i++) {
+    const a0 = range(0, TAU), r0 = Math.sqrt(rand()) * radius;
+    const start = new THREE.Vector3(Math.sin(a0) * r0, range(0, height), Math.cos(a0) * r0);
+    const dir = range(0, TAU), len = range(0.015, 0.035);
+    const pts = [start];
+    for (let k = 1; k <= 3; k++) {
+      const t = dir + range(-0.9, 0.9) * k * 0.4;
+      pts.push(pts[k - 1].clone().add(new THREE.Vector3(Math.sin(t) * len / 3, range(-0.0015, 0.0015), Math.cos(t) * len / 3)));
+    }
+    const g = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 16, tube * range(0.8, 1.3), 5);
+    buckets[i % colors.length].push(g);
+  }
+  return node(name, ...buckets.map((b, i) => new THREE.Mesh(mergeGeometries(b), material({ color: colors[i], roughness, clearcoat }))));
+}
+
+/** Breaded nuggets (irregular, flattened blobs with a fine crumb). */
+let nuggetMat = null;
+export function nuggets({ name, count, area, y = 0, heap = 0, s = 0 }) {
+  if (!nuggetMat) {
+    const point = (u, v) => {
+      const t = u * TAU, ph = v * Math.PI;
+      return [Math.sin(ph) * Math.sin(t) * 0.02, Math.cos(ph) * 0.02, Math.sin(ph) * Math.cos(t) * 0.02];
+    };
+    const maps = paintMaps({
+      w: TEX.small, h: 256, point,
+      color: ([x, y2, z]) => {
+        const n1 = fbm(x * 260, y2 * 260, z * 260, 3, 240);
+        const n2 = noise3(x * 1200, y2 * 1200, z * 1200, 241);
+        let c = mix(hex('#ee913d'), hex('#c8641d'), smooth(0.4, 0.75, n1));
+        return mix(c, hex('#f8bd6c'), smooth(0.7, 0.92, n2) * 0.6);
+      },
+      height: ([x, y2, z]) => fbm(x * 900, y2 * 900, z * 900, 2, 242),
+      strength: 3,
+    });
+    nuggetMat = material({ ...maps, roughness: 0.6, normalScale: 1.3 });
+  }
+  const g = new THREE.Group();
+  g.name = name;
+  for (let i = 0; i < count; i++) {
+    const geo = new THREE.SphereGeometry(1, 36, 20);
+    const sx = range(0.021, 0.027), sy = range(0.009, 0.012), sz = range(0.015, 0.019);
+    geo.scale(sx, sy, sz);
+    geo.computeVertexNormals();
+    const pos = geo.attributes.position, nor = geo.attributes.normal;
+    const p = new THREE.Vector3(), n = new THREE.Vector3();
+    for (let k = 0; k < pos.count; k++) {
+      p.fromBufferAttribute(pos, k);
+      n.fromBufferAttribute(nor, k);
+      const lump = (fbm(p.x * 90 + i, p.y * 90, p.z * 90, 3, 243 + s) - 0.5) * 0.004;
+      const crumb = (fbm(p.x * 500, p.y * 500, p.z * 500, 2, 244 + s) - 0.5) * 0.0012;
+      p.addScaledVector(n, lump + crumb);
+      if (p.y < -sy * 0.6) p.y = -sy * 0.6 + (p.y + sy * 0.6) * 0.3; // flat-ish fried underside
+      pos.setXYZ(k, p.x, p.y, p.z);
+    }
+    smoothSeams(geo);
+    const m = new THREE.Mesh(geo, nuggetMat);
+    const a = range(0, TAU), r = Math.sqrt(rand()) * area;
+    m.position.set(Math.sin(a) * r, y + sy * 0.6 + (heap ? (1 - r / area) * heap * rand() : 0), Math.cos(a) * r);
+    m.rotation.set(range(-0.5, 0.5), range(0, TAU), range(-0.5, 0.5));
+    g.add(m);
+  }
+  return g;
+}
+
+/** French fries: pile of square-cut sticks within a box area. */
+export function fries({ name, count, w, d, y = 0, height = 0.03 }) {
+  const a = [], b = [];
+  for (let i = 0; i < count; i++) {
+    const L = range(0.04, 0.065), t = range(0.0068, 0.0085);
+    const geo = new THREE.BoxGeometry(t, t, L, 1, 1, 4);
+    const pos = geo.attributes.position;
+    const bend = range(-0.004, 0.004);
+    for (let k = 0; k < pos.count; k++) {
+      const z = pos.getZ(k) / L;
+      pos.setY(k, pos.getY(k) + bend * (1 - 4 * z * z));
+    }
+    geo.computeVertexNormals();
+    place(geo, {
+      x: range(-w / 2, w / 2), y: y + range(0.003, height), z: range(-d / 2, d / 2),
+      rx: range(-0.35, 0.25), ry: Math.PI / 2 + range(-0.7, 0.7), rz: range(-0.2, 0.2),
+    });
+    (rand() > 0.4 ? a : b).push(geo);
+  }
+  return node(
+    name,
+    new THREE.Mesh(mergeGeometries(a), material({ color: '#f1cc6e', roughness: 0.6 })),
+    new THREE.Mesh(mergeGeometries(b), material({ color: '#e2ac4c', roughness: 0.6 })),
+  );
+}
+
+/**
+ * Inside surface for open containers. glTF has no "back side only"
+ * material, so the inside is a copy with reversed faces, nudged inwards.
+ */
+export function insideOf(geo, inset = 0.0006) {
+  const g = geo.index ? geo.toNonIndexed() : geo.clone();
+  const pos = g.attributes.position;
+  for (let i = 0; i < pos.count; i += 3) {
+    for (let k = 0; k < 3; k++) {
+      // swap vertices 1 and 2 of every triangle (and their other attributes)
+      for (const name of Object.keys(g.attributes)) {
+        const a = g.attributes[name];
+        if (k !== 1) continue;
+        for (let c = 0; c < a.itemSize; c++) {
+          const t = a.array[(i + 1) * a.itemSize + c];
+          a.array[(i + 1) * a.itemSize + c] = a.array[(i + 2) * a.itemSize + c];
+          a.array[(i + 2) * a.itemSize + c] = t;
+        }
+      }
+    }
+  }
+  g.computeVertexNormals();
+  const nor = g.attributes.normal;
+  for (let i = 0; i < pos.count; i++) {
+    pos.setXYZ(i, pos.getX(i) + nor.getX(i) * inset, pos.getY(i) + nor.getY(i) * inset, pos.getZ(i) + nor.getZ(i) * inset);
+  }
+  return g;
+}
+
+/** Paper food boat: tapered open tray, coloured outside, white inside. */
+export function paperTray({ name = 'Tray', bottom, top, height, color }) {
+  const [bw, bd] = bottom, [tw, td] = top;
+  const B = [[-bw / 2, -bd / 2], [bw / 2, -bd / 2], [bw / 2, bd / 2], [-bw / 2, bd / 2]];
+  const T = [[-tw / 2, -td / 2], [tw / 2, -td / 2], [tw / 2, td / 2], [-tw / 2, td / 2]];
+  const v = [];
+  const quad = (a, b, c, d) => v.push(...a, ...b, ...c, ...a, ...c, ...d);
+  const b3 = B.map(([x, z]) => [x, 0.001, z]);
+  const t3 = T.map(([x, z]) => [x, height, z]);
+  quad(b3[0], b3[1], b3[2], b3[3]); // floor (faces down after winding below)
+  for (let i = 0; i < 4; i++) {
+    const j = (i + 1) % 4;
+    quad(b3[i], t3[i], t3[j], b3[j]);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(v, 3));
+  geo.computeVertexNormals();
+  return node(
+    name,
+    new THREE.Mesh(geo, material({ color, roughness: 0.75 })),
+    new THREE.Mesh(insideOf(geo), material({ color: '#f4f1ea', roughness: 0.85 })),
   );
 }

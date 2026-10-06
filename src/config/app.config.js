@@ -1,12 +1,11 @@
 /**
- * Application-wide settings. Product-specific settings live in
- * src/data/products/*.js, never here.
+ * Application-wide settings, the same for every restaurant. Restaurant
+ * settings (name, colours, currency, dishes) live in
+ * restaurants/<id>/restaurant.js, never here.
  *
  * Keep this file free of browser globals: the Node scripts import it too.
  */
 export const APP_CONFIG = Object.freeze({
-  restaurantName: 'Our menu',
-
   routing: {
     /** ?product=burger-01 opens a dish directly (the QR-code entry point). */
     productParam: 'product',
@@ -40,14 +39,19 @@ export const APP_CONFIG = Object.freeze({
     webxr: true,
     quickLook: true,
     sceneViewer: true,
-    /** Keep AR at real-world size (no pinch-to-scale), per SOW §7.6. */
-    lockScale: true,
+    /**
+     * AR always opens at real-world size (SOW §7.6). With resizable on,
+     * customers can pinch to enlarge it (e.g. when viewing from a distance)
+     * and tap "Real size" to snap back. Set to false to lock real size.
+     */
+    resizable: true,
+    /** Pinch limits, as multiples of real size (WebXR only; iOS/Android viewers use their own). */
+    minScale: 0.5,
+    maxScale: 5,
   },
 
   decoders: {
     /** Only used if a GLB is Draco-compressed. */
     dracoPath: 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/',
   },
-
-  currency: { locale: 'en-PK', code: 'PKR', maximumFractionDigits: 0 },
 });

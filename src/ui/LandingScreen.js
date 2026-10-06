@@ -1,4 +1,4 @@
-import { APP_CONFIG } from '../config/app.config.js';
+import restaurant from '@restaurant';
 import { esc } from '../utils/dom.js';
 import { formatPrice } from '../utils/format.js';
 import { icons } from './icons.js';
@@ -19,30 +19,47 @@ export class LandingScreen {
   }
 
   render(products) {
-    document.title = APP_CONFIG.restaurantName;
+    document.title = restaurant.name;
+    const groups = restaurant.categories?.length
+      ? restaurant.categories
+          .map((c) => ({ ...c, items: products.filter((p) => p.category === c.id) }))
+          .filter((g) => g.items.length)
+      : [{ id: 'all', name: null, items: products }];
+
     this.root.innerHTML = `
       <div class="menu">
         <header class="menu__header">
-          <h1 class="menu__title">${esc(APP_CONFIG.restaurantName)}</h1>
-          <p class="menu__intro">See a dish in 3D before you order. Take it apart to see every layer, or put it on your table in AR.</p>
+          ${
+            restaurant.logo
+              ? `<img class="menu__logo" src="${esc(restaurant.logo)}" alt="${esc(restaurant.name)}" />`
+              : `<h1 class="menu__title">${esc(restaurant.name)}</h1>`
+          }
+          ${restaurant.intro ? `<p class="menu__intro">${esc(restaurant.intro)}</p>` : ''}
         </header>
-        <ul class="menu__list">
-          ${products
-            .map(
-              (p) => `
-            <li class="dish">
-              <div class="dish__text">
-                <h2 class="dish__name">${esc(p.name)}</h2>
-                ${p.summary ? `<p class="dish__summary">${esc(p.summary)}</p>` : ''}
-              </div>
-              <p class="dish__price">${esc(formatPrice(p.price))}</p>
-              <button class="button button--outline dish__cta" type="button" data-product="${esc(p.id)}">
-                ${icons.cube}<span>View in 3D</span>
-              </button>
-            </li>`,
-            )
-            .join('')}
-        </ul>
+        ${groups
+          .map(
+            (g) => `
+          <section class="menu__group">
+            ${g.name ? `<h2 class="menu__group-title">${esc(g.name)}</h2>` : ''}
+            <ul class="menu__list">${g.items.map(dish).join('')}</ul>
+          </section>`,
+          )
+          .join('')}
       </div>`;
   }
+}
+
+function dish(p) {
+  const price = formatPrice(p.price);
+  return `
+    <li class="dish">
+      <div class="dish__text">
+        <h3 class="dish__name">${esc(p.name)}</h3>
+        ${p.summary ? `<p class="dish__summary">${esc(p.summary)}</p>` : ''}
+      </div>
+      ${price ? `<p class="dish__price">${esc(price)}</p>` : '<span></span>'}
+      <button class="button button--outline dish__cta" type="button" data-product="${esc(p.id)}">
+        ${icons.cube}<span>View in 3D</span>
+      </button>
+    </li>`;
 }

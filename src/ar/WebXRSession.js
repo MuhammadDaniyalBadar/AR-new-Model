@@ -15,6 +15,7 @@ import { EventEmitter } from '../core/EventEmitter.js';
 import { animator } from '../core/animator.js';
 import { easeOutBack } from '../utils/easing.js';
 import { createContactShadow } from '../viewer/contactShadow.js';
+import { APP_CONFIG } from '../config/app.config.js';
 
 /**
  * In-browser AR using WebXR hit-testing (Android Chrome with ARCore).
@@ -26,7 +27,7 @@ import { createContactShadow } from '../viewer/contactShadow.js';
  * States: 'idle' → 'searching' (no surface yet) → 'ready' (tap to place)
  *         → 'placed' ⇄ 'moving' (anchor follows the surface until tapped)
  *
- * Events: 'state', 'frame' (xrCamera), 'end'
+ * Events: 'state', 'frame' (xrCamera), 'scale' (multiple of real size), 'end'
  */
 export class WebXRSession extends EventEmitter {
   #session = null;
@@ -35,6 +36,7 @@ export class WebXRSession extends EventEmitter {
   #productModel = null;
   #shadow = null;
   #hasPlacedOnce = false;
+  #userScale = 1;
 
   /**
    * @param {{renderer: import('three').WebGLRenderer, overlayRoot: HTMLElement, environment?: import('three').Texture}} opts
@@ -83,8 +85,9 @@ export class WebXRSession extends EventEmitter {
     this.#hasPlacedOnce = false;
 
     // Borrow the model from the viewer and size it to the real world.
-    const scale = productModel.realWorldScale;
-    this.scaler.scale.setScalar(scale);
+    this.#userScale = 1;
+    this.#applyScale();
+    this.emit('scale', 1);
     this.scaler.add(productModel.object);
     const size = productModel.assembledBox.getSize(new Vector3());
     this.#shadow = createContactShadow(size.x * 1.6, size.z * 1.6, 0.9);
@@ -121,6 +124,36 @@ export class WebXRSession extends EventEmitter {
 
   rotateBy(radians) {
     if (this.#state === 'placed') this.anchor.rotation.y += radians;
+  }
+
+  /** Multiply the size (pinch). Always relative to real size, clamped. */
+  scaleBy(factor) {
+    if (!APP_CONFIG.ar.resizable || this.#state !== 'placed') return;
+    const { minScale, maxScale } = APP_CONFIG.ar;
+    const next = Math.min(maxScale, Math.max(minScale, this.#userScale * factor));
+    if (next === this.#userScale) return;
+    this.#userScale = next;
+    this.#applyScale();
+    this.emit('scale', next);
+  }
+
+  /** Snap back to real-world size. */
+  resetScale() {
+    const from = this.#userScale;
+    if (from === 1) return;
+    animator.tween({
+      duration: 280,
+      onUpdate: (k) => {
+        this.#userScale = from + (1 - from) * k;
+        this.#applyScale();
+      },
+    });
+    this.#userScale = 1;
+    this.emit('scale', 1);
+  }
+
+  #applyScale(k = 1) {
+    if (this.#productModel) this.scaler.scale.setScalar(this.#productModel.realWorldScale * this.#userScale * k);
   }
 
   /** Bounds of the dish in AR, used to keep labels sensible. */
@@ -165,11 +198,10 @@ export class WebXRSession extends EventEmitter {
       // Face the customer on first placement, with a short "set down" motion.
       const cam = new Vector3().setFromMatrixPosition(this.renderer.xr.getCamera().matrixWorld);
       this.anchor.rotation.y = Math.atan2(cam.x - position.x, cam.z - position.z);
-      const s = this.#productModel.realWorldScale;
       animator.tween({
         duration: 420,
         easing: easeOutBack,
-        onUpdate: (k) => this.scaler.scale.setScalar(s * (0.7 + 0.3 * k)),
+        onUpdate: (k) => this.#applyScale(0.7 + 0.3 * k),
       });
       this.#hasPlacedOnce = true;
     }

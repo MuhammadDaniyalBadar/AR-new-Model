@@ -1,3 +1,5 @@
+import { APP_CONFIG } from '../config/app.config.js';
+
 /**
  * Android fallback when in-browser WebXR is unavailable: hands the GLB to
  * Google's Scene Viewer app. The model URL must be publicly reachable over
@@ -10,7 +12,7 @@ export function launchSceneViewer(product) {
     file: modelUrl,
     mode: 'ar_preferred',
     title: product.name,
-    resizable: 'false', // keep real-world size
+    resizable: String(APP_CONFIG.ar.resizable), // opens at real size either way
   });
   const intent =
     `intent://arvr.google.com/scene-viewer/1.0?${params}` +

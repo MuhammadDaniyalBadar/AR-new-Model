@@ -4,15 +4,16 @@ Customer-facing viewer from **SOW v1.0**: open a dish from a QR code, turn and z
 
 This build covers the customer experience and AR only. The admin panel is intentionally not included.
 
-> **Placeholder content.** The GLBs in `public/models/` are generated stand-ins and every description, weight and price in `src/data/products/` is sample data (except Quadra's price, taken from its poster). Replace both with real models and restaurant-approved information before launch.
+> **Placeholder content.** All 3D models are procedural stand-ins and all dish details are sample or pitch-demo data. Replace both with real models and restaurant-approved information before launch.
 
 ## Quick start
 
 ```bash
 npm install
-npm run dev          # http://localhost:5173 and http://<your-LAN-IP>:5173 (3D viewer, no AR on phones)
-npm run dev:phone    # https://<your-LAN-IP>:5173 (needed for AR on a phone)
-npm run build        # production build in dist/
+npm run dev                    # demo restaurant on http://localhost:5173 (and your LAN IP)
+npm run dev burgerlab          # same, for Burger Lab
+npm run dev:phone burgerlab    # HTTPS on your Wi-Fi (needed for AR on a phone)
+npm run build burgerlab        # production build of one restaurant in dist/
 npm run preview      # serve the production build
 ```
 
@@ -45,14 +46,57 @@ AR needs a secure context, so `localhost` on your laptop is not enough for a pho
 
 Scene Viewer (the Android fallback) downloads the GLB on Google's side, so it only works once the app is hosted on a public HTTPS domain. For a quick public URL you can use any tunnel (e.g. `cloudflared tunnel --url https://localhost:5173`) or deploy `dist/` to any static host.
 
+## Restaurants
+
+One codebase serves any number of restaurants. Each one is a folder:
+
+```
+restaurants/
+  demo/                 neutral demo, safe to show any prospect
+  burgerlab/            Burger Lab pitch demo
+    restaurant.js       name, logo, colours, fonts, currency, menu sections, dish list
+    products/*.js       one file per dish (content, layers, explode settings)
+    public/             served at the site root for this restaurant only
+      models/*.glb      3D models
+      brand/logo.jpg    logo
+      favicon.png
+```
+
+Every command takes the restaurant as a plain word (no `--`, so it works the same in PowerShell): `npm run dev burgerlab`, `npm run build burgerlab`, `npm run qr burgerlab https://...`, `npm run models burgerlab`. Without one, `demo` is used.
+
+A build contains **only** that restaurant's dishes, models and branding, so a prospect never sees another restaurant's menu. Deploy each restaurant as its own Netlify site from the same GitHub repository and set an environment variable **`RESTAURANT`** (e.g. `burgerlab`) in that site's settings (*Site configuration → Environment variables*). The build command stays `npm run build`.
+
+To add a restaurant, see [docs/ADDING_A_RESTAURANT.md](docs/ADDING_A_RESTAURANT.md).
+
 ## Scripts
 
 | Command | What it does |
 | --- | --- |
-| `npm run inspect -- public/models/classic-burger.glb` | Prints a GLB's node tree with the names three.js will see. Use it to fill in `nodes` in a product file |
-| `npm run qr -- --base https://menu.example.com` | Writes one SVG and PNG QR code per product to `qr-codes/` |
-| `npm run models:detailed` | Regenerates the detailed, textured stand-ins built from the client's reference photos: Quadra, Classic Beef Burger, Double Crunch Burger |
-| `npm run models` | Regenerates the simple placeholder GLBs (Big Bang Burger, Animal Fries) |
+| `npm run inspect restaurants/demo/public/models/classic-burger.glb` | Prints a GLB's node tree with the names three.js will see. Use it to fill in `nodes` in a product file |
+| `npm run qr burgerlab https://your-menu.netlify.app` | Writes the QR codes for the printed menu to `qr-codes/burgerlab/` (see below) |
+| `npm run models burgerlab` | Regenerates a restaurant's procedural stand-in models (`scripts/models/<restaurant>.mjs`, parts library in `scripts/lib/food-parts.mjs`) |
+
+## QR codes for the printed menu
+
+Each QR code opens one dish directly, e.g. `https://your-menu.netlify.app/?product=quadra-01`. The customer lands straight in the 3D view of that dish, with take apart, labels, details and AR exactly as in the app.
+
+1. Deploy the site and note its live **https** address.
+2. Run `npm run qr burgerlab https://your-menu.netlify.app` (the restaurant and its live address). It warns you if the address isn't https or is a local one.
+3. Open `qr-codes/<restaurant>/print.html` in a browser for ready-to-cut cards (four per A4 page, with the restaurant's logo, dish name, price and "Scan to see it in 3D"). Print it, or *Save as PDF* and send it to the printer. Give a designer the `.svg` files if the codes go into the menu layout itself.
+4. Test-scan one code with an iPhone and an Android phone before printing in bulk.
+
+Rules that keep printed codes working:
+
+- **Never rename a product `id`** once its code is printed. The code contains the id; a renamed dish opens "Dish not found" (with a link to the menu) instead.
+- **Keep the same domain.** Moving to a new address means reprinting, so if you plan to use the restaurant's own domain, connect it before printing.
+- Everything else (models, names, prices, descriptions) can change freely; the printed codes pick up the changes automatically.
+- Print each code at least 2.5 cm wide. The codes use the highest error correction, so small smudges and glare on a laminated menu still scan.
+
+`qr-codes/` is regenerated on demand and is not committed to Git.
+
+## Deploying
+
+`netlify.toml` contains the build settings (`npm run build`, publish `dist`), so connecting the GitHub repository in Netlify needs no extra configuration. It also caches the app and models sensibly and makes any unknown path load the app instead of a 404.
 
 ## AR support
 
@@ -74,7 +118,7 @@ When AR isn't available the button still works: it opens a short sheet explainin
 ```
 index.html                 App shell: menu screen, viewer screen, AR overlay
 vite.config.js             HTTPS in --mode phone, three.js in its own chunk
-public/models/             GLB files (one per dish)
+restaurants/<id>/          one folder per restaurant (see Restaurants above)
 scripts/                   Node tools: inspect GLB, generate QR codes, placeholder models
 docs/ADDING_A_PRODUCT.md   How to add a dish and prepare a model in Blender
 src/
@@ -94,7 +138,7 @@ src/
 
 ### How the pieces fit
 
-- **`ProductRepository`** returns plain product objects from `src/data/products`. Nothing else reads those files, so swapping in an API later is a one-file change.
+- **`ProductRepository`** returns plain product objects from the current restaurant (imported as `@restaurant`, which Vite points at `restaurants/<id>/restaurant.js`). Nothing else reads those files, so swapping in an API later is a one-file change.
 - **`ProductModel`** wraps a loaded GLB together with its product definition. It owns a **`ComponentRegistry`** (maps each component to its GLB nodes), an **`ExplodeController`** (one reversible, staggered timeline) and a **`FocusController`** (dims the other layers when one is selected).
 - **`Viewer3D`** renders on demand, handles orbit, zoom, reset and framing, and shifts the dish aside with a view offset when labels or the sheet need room. It suspends while AR runs.
 - **`ARManager`** picks the best available AR mode once, at load. **`WebXRSession`** reuses the same `ProductModel`, so explode and labels behave identically in AR.
@@ -107,14 +151,11 @@ src/
 ## Replacing the placeholder models
 
 1. Export the real model from Blender as GLB (see `docs/ADDING_A_PRODUCT.md` for naming, units and origin).
-2. Drop it into `public/models/`, e.g. replacing `classic-burger.glb`.
-3. Run `npm run inspect -- public/models/classic-burger.glb` and make sure each component's `nodes` in `src/data/products/burger-01.js` matches.
+2. Drop it into `restaurants/<id>/public/models/`, e.g. replacing `classic-burger.glb`.
+3. Run `npm run inspect restaurants/demo/public/models/classic-burger.glb` and make sure each component's `nodes` in `restaurants/demo/products/burger-01.js` matches.
 4. Open `/?product=burger-01&debug`. The panel lists any component whose nodes weren't found.
 5. Tune `explode.distance` values until the layers separate cleanly.
 
 ## Out of scope (per SOW)
 
 Admin dashboard, authentication, payments, POS, ordering and analytics.
-#   A R - n e w - M o d e l  
- #   A R - n e w - M o d e l  
- 

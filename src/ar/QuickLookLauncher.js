@@ -1,3 +1,4 @@
+import { APP_CONFIG } from '../config/app.config.js';
 import { Group } from 'three';
 import { USDZExporter } from 'three/examples/jsm/exporters/USDZExporter.js';
 
@@ -65,8 +66,9 @@ export class QuickLookLauncher {
     if (!url) return false;
     const a = document.createElement('a');
     a.rel = 'ar';
-    // Keep real-world size: disable pinch-to-scale in Quick Look.
-    a.href = `${url}#allowsContentScaling=0`;
+    // Quick Look always opens at real size; this decides whether pinching can
+    // resize it (Quick Look shows the % and snaps back to 100% on its own).
+    a.href = `${url}#allowsContentScaling=${APP_CONFIG.ar.resizable ? 1 : 0}`;
     a.appendChild(document.createElement('img'));
     a.click();
     return true;

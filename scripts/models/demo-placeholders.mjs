@@ -3,7 +3,7 @@
  * addressable component nodes, so the app runs before the real
  * Blender assets are dropped in.
  *
- *   npm run models
+ *   npm run models demo   (runs this and scripts/models/demo.mjs)
  *
  * Every model is authored in METERS with its origin at the bottom centre,
  * which is the convention the app (and AR placement) expects. Replace the
@@ -27,7 +27,7 @@ globalThis.FileReader ??= class {
   }
 };
 
-const OUT_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '../public/models');
+const OUT_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '../../restaurants/demo/public/models');
 
 // Deterministic random so the models are identical on every run.
 let seed = 1337;

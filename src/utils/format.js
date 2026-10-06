@@ -1,9 +1,10 @@
-import { APP_CONFIG } from '../config/app.config.js';
+import restaurant from '@restaurant';
 
-const money = new Intl.NumberFormat(APP_CONFIG.currency.locale, {
+const { currency } = restaurant;
+const money = new Intl.NumberFormat(currency.locale, {
   style: 'currency',
-  currency: APP_CONFIG.currency.code,
-  maximumFractionDigits: APP_CONFIG.currency.maximumFractionDigits ?? 2,
+  currency: currency.code,
+  maximumFractionDigits: currency.maximumFractionDigits ?? 2,
 });
 
 export const formatPrice = (amount) => (Number.isFinite(amount) ? money.format(amount) : '');

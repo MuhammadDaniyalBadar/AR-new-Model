@@ -1,6 +1,6 @@
 # Adding a product
 
-A dish is two things: a **GLB model** in `public/models/` and a **product file** in `src/data/products/`. No new pages or code are needed (SOW: product configuration is kept separate from assets).
+A dish is two things: a **GLB model** in `restaurants/<id>/public/models/` and a **product file** in `restaurants/<id>/products/`. No new pages or code are needed (SOW: product configuration is kept separate from assets).
 
 ## 1. Prepare the model in Blender
 
@@ -34,20 +34,20 @@ Top_Bun   Lettuce   Tomato   Cheese   Patty   Sauce   Bottom_Bun
 ## 2. Check the node names
 
 ```bash
-npm run inspect -- public/models/my-dish.glb
+npm run inspect restaurants/<id>/public/models/my-dish.glb
 ```
 
 This prints the node tree with the names the app will match against.
 
 ## 3. Create the product file
 
-Copy `src/data/products/burger-01.js` to a new file, e.g. `src/data/products/chicken-01.js`, and edit it:
+Copy an existing product, e.g. `restaurants/demo/products/burger-01.js`, to a new file such as `restaurants/<id>/products/chicken-01.js`, and edit it:
 
 ```js
 export default {
   id: 'chicken-01',             // a–z, 0–9 and "-" only; appears in QR URLs (?product=chicken-01)
   name: 'Crispy Chicken Burger',
-  category: 'burgers',
+  category: 'burgers',          // matches an id in restaurant.js categories (menu sections)
   summary: 'One line for the menu list.',
   description: 'Longer text for the Details sheet.',
   price: 10.5,                  // number; formatted with the currency in app.config.js
@@ -82,11 +82,12 @@ export default {
 };
 ```
 
-Then register it in `src/data/products/index.js`:
+Then add it to the `products` list in `restaurants/<id>/restaurant.js` (the list order is the menu order):
 
 ```js
-import chicken from './chicken-01.js';
-export const PRODUCTS = [burger, bigBang, animalFries, chicken];
+import chicken from './products/chicken-01.js';
+// ...
+products: [burger, bigBang, animalFries, chicken],
 ```
 
 **Component info must come from the restaurant.** The app never derives weights, sizes or ingredients from the model (SOW). Any field left out is simply not shown. Supported `info` fields: `description`, `weightG`, `size`, `mainIngredients`, `allergens`, `notes`. Unknown fields trigger a console warning.
@@ -101,8 +102,8 @@ export const PRODUCTS = [burger, bigBang, animalFries, chicken];
 
 ## 5. Verify
 
-1. `npm run dev` and open `/?product=chicken-01&debug`.
+1. `npm run dev <id>` and open `/?product=chicken-01&debug`.
 2. The debug panel shows each node, which component it matched, and any component whose nodes were not found.
 3. Tap **Take apart** and check that every layer separates and every label appears.
-4. On a phone (`npm run dev:phone`), check AR placement and that the size looks right on the table.
-5. Generate its QR code: `npm run qr -- --base https://your-domain.com`.
+4. On a phone (`npm run dev:phone <id>`), check AR placement and that the size looks right on the table.
+5. Generate its QR code: `npm run qr <id> https://your-domain.com`.

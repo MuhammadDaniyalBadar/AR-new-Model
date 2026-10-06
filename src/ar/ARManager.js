@@ -73,6 +73,9 @@ export class ARManager extends EventEmitter {
       this.overlay.on('close', () => this.webxr.end());
       this.overlay.on('move', () => this.webxr.move());
       this.overlay.on('rotate', (radians) => this.webxr.rotateBy(radians));
+      this.overlay.on('pinch', (factor) => this.webxr.scaleBy(factor));
+      this.overlay.on('real-size', () => this.webxr.resetScale());
+      this.webxr.on('scale', (s) => this.overlay.setScale(s));
     }
 
     // The overlay must be visible before the session starts (it becomes the DOM overlay).

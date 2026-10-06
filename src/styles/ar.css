@@ -62,6 +62,36 @@
   pointer-events: none;
 }
 
+.ar__size {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--space-5) + var(--safe-bottom) + 64px);
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 40px;
+  padding: 0 6px 0 14px;
+  border: 0;
+  border-radius: 999px;
+  background: rgb(31 42 30 / 0.72);
+  color: #fff;
+  font: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+}
+.ar__size b {
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--ink);
+  font-weight: 650;
+}
+.ar__size[hidden] {
+  display: none;
+}
+
 /* While AR runs, the regular page should not peek through. */
 html.is-ar body > :not(#ar-overlay):not(#toast) {
   visibility: hidden;

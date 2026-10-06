@@ -3,12 +3,11 @@
   "version": "0.1.0",
   "description": "Interactive 3D & AR restaurant menu: customer-facing viewer (SOW v1.0)",
   "scripts": {
-    "dev": "vite",
-    "dev:phone": "vite --mode phone",
-    "build": "vite build",
-    "preview": "vite preview",
-    "models": "node scripts/generate-placeholder-models.mjs",
-    "models:detailed": "node scripts/generate-detailed-models.mjs",
+    "dev": "node scripts/vite.mjs dev",
+    "dev:phone": "node scripts/vite.mjs dev --phone",
+    "build": "node scripts/vite.mjs build",
+    "preview": "node scripts/vite.mjs preview",
+    "models": "node scripts/models.mjs",
     "inspect": "node scripts/inspect-glb.mjs",
     "qr": "node scripts/generate-qr.mjs"
   },

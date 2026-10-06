@@ -1,0 +1,38 @@
+# Netlify settings, used when the site is deployed from GitHub.
+# Which restaurant a site builds is set per site in the Netlify UI:
+#   Site configuration → Environment variables → RESTAURANT = burgerlab
+# (without it, the demo restaurant is built).
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# Scanned QR codes always hit the site root with ?product=..., but a mistyped
+# or old path should still load the app (it shows "Dish not found" + menu)
+# instead of Netlify's 404 page.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Hashed JS/CSS never change, cache them for a year.
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# Models are re-fetched at most once a day, so a returning customer loads
+# the dish instantly but replaced models still show up the next day.
+[[headers]]
+  for = "/models/*"
+  [headers.values]
+    Cache-Control = "public, max-age=86400"
+    Access-Control-Allow-Origin = "*"
+
+# Always check for a new version of the page itself.
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"

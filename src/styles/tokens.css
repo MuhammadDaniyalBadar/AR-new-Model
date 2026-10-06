@@ -11,7 +11,9 @@
   --hairline: rgb(31 42 30 / 0.14);
   --focus: #1f6feb;
 
+  /* Restaurant themes override these (see restaurants/<id>/restaurant.js). */
   --font: 'Bricolage Grotesque', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-display: var(--font);
 
   /* type scale */
   --t-xs: 0.8125rem; /* 13 */

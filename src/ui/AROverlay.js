@@ -1,11 +1,12 @@
 import { EventEmitter } from '../core/EventEmitter.js';
 import { LabelLayer } from '../viewer/LabelLayer.js';
 import { icons } from './icons.js';
+import { APP_CONFIG } from '../config/app.config.js';
 
 const STATUS = {
   searching: () => 'Point your camera at the table and move your phone slowly.',
   ready: (name) => `Tap the table to put the ${name} there.`,
-  placed: () => 'Shown at real size. Drag to turn it.',
+  placed: () => (APP_CONFIG.ar.resizable ? 'Real size. Drag to turn, pinch to make it bigger.' : 'Shown at real size. Drag to turn it.'),
   moving: () => 'Tap to put it down here.',
 };
 
@@ -13,7 +14,7 @@ const STATUS = {
  * The HTML layer shown on top of the camera during WebXR AR (the "DOM
  * overlay"). Holds the status line, controls and component labels.
  *
- * Events: 'close', 'move', 'rotate' (radians)
+ * Events: 'close', 'move', 'rotate' (radians), 'pinch' (factor), 'real-size'
  */
 export class AROverlay extends EventEmitter {
   #productModel = null;
@@ -31,6 +32,7 @@ export class AROverlay extends EventEmitter {
         <button class="ar__close icon-button icon-button--glass" type="button" data-ar="close" aria-label="Close AR">${icons.close}</button>
         <p class="ar__status" aria-live="polite"></p>
       </div>
+      <button class="ar__size" type="button" data-ar="real-size" hidden></button>
       <div class="ar__toolbar">
         <button class="button button--primary" type="button" data-ar="explode">${icons.layers}<span>Take apart</span></button>
         <button class="button button--glass" type="button" data-ar="move">${icons.move}<span>Move</span></button>
@@ -40,6 +42,7 @@ export class AROverlay extends EventEmitter {
     this.explodeBtn = root.querySelector('[data-ar="explode"]');
     this.moveBtn = root.querySelector('[data-ar="move"]');
     this.labelsEl = root.querySelector('.ar__labels');
+    this.sizeBtn = root.querySelector('[data-ar="real-size"]');
 
     // Taps on controls must not also place the dish (WebXR "select").
     for (const el of root.querySelectorAll('button')) {
@@ -47,9 +50,10 @@ export class AROverlay extends EventEmitter {
     }
     root.querySelector('[data-ar="close"]').addEventListener('click', () => this.emit('close'));
     this.moveBtn.addEventListener('click', () => this.emit('move'));
+    this.sizeBtn.addEventListener('click', () => this.emit('real-size'));
     this.explodeBtn.addEventListener('click', () => this.#productModel?.explode.toggle());
 
-    this.#bindRotateGesture(root.querySelector('.ar__gesture'));
+    this.#bindGestures(root.querySelector('.ar__gesture'));
   }
 
   open(productModel) {
@@ -79,6 +83,17 @@ export class AROverlay extends EventEmitter {
     const placed = state === 'placed';
     this.explodeBtn.disabled = !placed || !this.#productModel?.explode.canExplode;
     this.moveBtn.disabled = !placed;
+    if (!placed) this.sizeBtn.hidden = true;
+  }
+
+  /** Show "2.4× size · Real size" while enlarged; tapping it snaps back. */
+  setScale(scale) {
+    const real = Math.abs(scale - 1) < 0.03;
+    this.sizeBtn.hidden = real;
+    if (!real) {
+      const label = scale >= 1 ? `${scale.toFixed(1)}× bigger` : `${Math.round(scale * 100)}% size`;
+      this.sizeBtn.innerHTML = `<span>${label}</span><b>Real size</b>`;
+    }
   }
 
   update(camera) {
@@ -93,15 +108,44 @@ export class AROverlay extends EventEmitter {
     this.explodeBtn.setAttribute('aria-pressed', String(open));
   }
 
-  #bindRotateGesture(surface) {
+  /** One finger turns the dish; two fingers pinch to resize it. */
+  #bindGestures(surface) {
+    const pointers = new Map();
     let lastX = null;
-    surface.addEventListener('pointerdown', (e) => (lastX = e.clientX));
-    surface.addEventListener('pointermove', (e) => {
-      if (lastX === null) return;
-      this.emit('rotate', (e.clientX - lastX) * 0.012);
-      lastX = e.clientX;
+    let lastDist = null;
+    const dist = () => {
+      const [a, b] = [...pointers.values()];
+      return Math.hypot(a.x - b.x, a.y - b.y);
+    };
+
+    surface.addEventListener('pointerdown', (e) => {
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pointers.size === 1) lastX = e.clientX;
+      if (pointers.size === 2) {
+        lastX = null; // stop turning while pinching
+        lastDist = dist();
+      }
     });
-    const stop = () => (lastX = null);
+    surface.addEventListener('pointermove', (e) => {
+      if (!pointers.has(e.pointerId)) return;
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pointers.size === 2 && lastDist) {
+        const d = dist();
+        if (d > 0) this.emit('pinch', d / lastDist);
+        lastDist = d;
+      } else if (pointers.size === 1 && lastX !== null) {
+        this.emit('rotate', (e.clientX - lastX) * 0.012);
+        lastX = e.clientX;
+      }
+    });
+    const stop = (e) => {
+      pointers.delete(e.pointerId);
+      lastDist = null;
+      // After a pinch, the finger still down carries on turning from where it is
+      // (no jump), so customers don't have to lift and touch again.
+      const remaining = [...pointers.values()][0];
+      lastX = remaining ? remaining.x : null;
+    };
     surface.addEventListener('pointerup', stop);
     surface.addEventListener('pointercancel', stop);
   }
