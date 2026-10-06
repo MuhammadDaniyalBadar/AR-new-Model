@@ -54,6 +54,7 @@ One codebase serves any number of restaurants. Each one is a folder:
 restaurants/
   demo/                 neutral demo, safe to show any prospect
   burgerlab/            Burger Lab pitch demo
+  burgeroclock/         Burger O'Clock pitch demo
     restaurant.js       name, logo, colours, fonts, currency, menu sections, dish list
     products/*.js       one file per dish (content, layers, explode settings)
     public/             served at the site root for this restaurant only

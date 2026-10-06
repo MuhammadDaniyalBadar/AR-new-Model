@@ -45,12 +45,12 @@ function shroomSmash() {
   const d = stacker('Shroom_Smash');
   d.add(bottomBun({ radius: 0.058, height: 0.026, style: 'potato' }), 0.026);
   d.add(sauce({ name: 'Mayo', radius: 0.05, color: '#f1ece0', rimFrom: 0.05, drips: 0.3, s: 1 }), 0, -0.001);
-  d.add(onionStrands({ name: 'Red_Onion', count: 40, radius: 0.05, height: 0.004, colors: ['#b0739a', '#efe2ea'], tube: 0.0013 }), 0.004);
+  d.add(onionStrands({ name: 'Red_Onion', count: 40, radius: 0.05, height: 0.004, colors: ['#b0739a', '#efe2ea'], tube: 0.0013, len: [0.014, 0.026] }), 0.004);
   for (let i = 1; i <= 2; i++) {
     const p = d.add(patty({ name: `Patty_${i}`, radius: 0.064, height: 0.011, style: 'smash', s: 30 + i * 4 }), 0.011);
     p.rotation.y = i * 1.9;
     d.add(cheese({ name: `Cheese_${i}`, size: 0.098, dropFrom: 0.058, rot: 0.5 + i, color: '#f7b52a', s: 40 + i }), 0.0024, 0.0004);
-    if (i === 1) d.add(onionStrands({ name: 'Sauteed_Onions', count: 45, radius: 0.052, height: 0.004, colors: ['#d9b27f', '#c28d55'], tube: 0.0013 }), 0.004);
+    if (i === 1) d.add(onionStrands({ name: 'Sauteed_Onions', count: 45, radius: 0.052, height: 0.004, colors: ['#d9b27f', '#c28d55'], tube: 0.0013, len: [0.01, 0.018] }), 0.004);
   }
   d.add(mushroomSauce({ name: 'Mushroom_Sauce', radius: 0.052, rimFrom: 0.045, s: 2 }), 0.012);
   d.add(topBun({ radius: 0.06, height: 0.05, style: 'potato' }));
@@ -68,7 +68,7 @@ function allAmerican() {
     d.add(cheese({ name: `Cheese_${i}`, size: 0.1, dropFrom: 0.058, rot: 0.3 + i * 0.8, color: '#f7b52a', s: 60 + i }), 0.0024, 0.0004);
   }
   d.add(pickles({ name: 'Pickles', count: 4, area: 0.032, y: 0.002, s: 4 }), 0.005);
-  d.add(onionStrands({ name: 'Sauteed_Onions', count: 70, radius: 0.05, height: 0.006, colors: ['#5c2a12', '#7a3a18'], tube: 0.0018 }), 0.007);
+  d.add(onionStrands({ name: 'Sauteed_Onions', count: 70, radius: 0.05, height: 0.006, colors: ['#5c2a12', '#7a3a18'], tube: 0.0018, len: [0.012, 0.022] }), 0.007);
   d.add(sauce({ name: 'Signature_Sauce', radius: 0.05, color: '#f2ad72', rimFrom: 0.05, drips: 0.5, s: 5 }), 0.002);
   d.add(topBun({ radius: 0.06, height: 0.05, style: 'potato' }));
   return d.root;

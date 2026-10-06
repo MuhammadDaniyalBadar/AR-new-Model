@@ -783,30 +783,35 @@ export async function exportModels(models, outDir) {
  * Fried / breaded chicken fillet.
  *   crispy:    flaky, craggy golden coating (classic fried chicken)
  *   nashville: tight craggy coating, deep red-brown with spice
+ *   shredded:  very craggy, shaggy strands of fried batter
  *   smooth:    fine-crumb breaded patty (nugget-style coating)
  */
 const filletMaps = new Map();
 export function friedFillet({ name, width, depth, height, style = 'crispy', s = 0 }) {
   const H = height;
-  const raw = [[0, 0], [0.85, 0], [0.98, H * 0.25], [1, H * 0.5], [0.98, H * 0.75], [0.85, H], [0, H]];
+  // Domed, not cylindrical: a fillet is widest near the middle and tapers on top.
+  const raw = [[0, 0], [0.88, 0], [1, H * 0.3], [0.97, H * 0.6], [0.8, H * 0.85], [0.42, H], [0, H]];
   const profile = resample(raw, 40);
   const P = {
-    crispy: { edge: 0.22, edgeF: 7, crag: 0.006, cragF: 70, crumb: 0.0016 },
-    nashville: { edge: 0.26, edgeF: 6, crag: 0.0055, cragF: 95, crumb: 0.0018 },
-    smooth: { edge: 0.05, edgeF: 2, crag: 0.0006, cragF: 60, crumb: 0.0005 },
+    crispy: { blob: 0.16, blobF: 26, crag: 0.0055, cragF: 55, crumb: 0.0016 },
+    shredded: { blob: 0.24, blobF: 20, crag: 0.0095, cragF: 42, crumb: 0.0022 },
+    nashville: { blob: 0.14, blobF: 24, crag: 0.005, cragF: 70, crumb: 0.0018 },
+    smooth: { blob: 0.04, blobF: 16, crag: 0.0006, cragF: 60, crumb: 0.0005 },
   }[style];
   const geo = lathe(profile, 112, (p, n) => {
-    const a = Math.atan2(p.x, p.z), r = Math.hypot(p.x, p.z);
-    const sc = 1 + (angNoise(a, P.edgeF, 200 + s, 3) - 0.5) * P.edge * smooth(0.5, 1, r);
-    p.x *= sc * (width / 2);
-    p.z *= sc * (depth / 2);
+    p.x *= width / 2;
+    p.z *= depth / 2;
+    n.set(n.x * (2 / width), n.y, n.z * (2 / depth)).normalize();
+    // 3D lumps so the outline is ragged at every height (not vertical ribs)
+    const blob = (fbm(p.x * P.blobF, p.y * P.blobF * 0.7, p.z * P.blobF, 3, 200 + s) - 0.5) * P.blob * (width / 2);
     // Ridged noise = sharp craggy peaks of fried batter
     const rn = 1 - Math.abs(fbm(p.x * P.cragF, p.y * P.cragF, p.z * P.cragF, 3, 201 + s) * 2 - 1);
     const crumb = (fbm(p.x * 380, p.y * 380, p.z * 380, 2, 202 + s) - 0.5) * P.crumb;
-    p.addScaledVector(n.set(n.x * (width / 2), n.y, n.z * (depth / 2)).normalize(), rn * rn * P.crag + crumb);
+    p.addScaledVector(n, blob + rn * rn * P.crag + crumb);
   });
   const pal = {
     crispy: ['#dfa863', '#a86529', '#f2cb8a'],
+    shredded: ['#d9a059', '#9a5820', '#f4d096'],
     nashville: ['#9b3414', '#5a1a0b', '#c4581f'],
     smooth: ['#ec8f3c', '#c4601d', '#f6b464'],
   }[style];
@@ -898,16 +903,23 @@ export function mushroomSauce({ name, radius, rimFrom, s = 0 }) {
 }
 
 /** Sautéed / caramelised onion strands, or raw onion slivers. */
-export function onionStrands({ name, count, radius, height, colors, tube = 0.0014, roughness = 0.35, clearcoat = 0.5 }) {
+export function onionStrands({ name, count, radius, height, colors, tube = 0.0014, len: lenRange = [0.012, 0.024], roughness = 0.35, clearcoat = 0.5 }) {
   const buckets = colors.map(() => []);
   for (let i = 0; i < count; i++) {
-    const a0 = range(0, TAU), r0 = Math.sqrt(rand()) * radius;
+    const a0 = range(0, TAU), r0 = Math.sqrt(rand()) * radius * 0.8;
     const start = new THREE.Vector3(Math.sin(a0) * r0, range(0, height), Math.cos(a0) * r0);
-    const dir = range(0, TAU), len = range(0.015, 0.035);
+    const dir = range(0, TAU), len = range(lenRange[0], lenRange[1]);
     const pts = [start];
     for (let k = 1; k <= 3; k++) {
       const t = dir + range(-0.9, 0.9) * k * 0.4;
-      pts.push(pts[k - 1].clone().add(new THREE.Vector3(Math.sin(t) * len / 3, range(-0.0015, 0.0015), Math.cos(t) * len / 3)));
+      const next = pts[k - 1].clone().add(new THREE.Vector3(Math.sin(t) * len / 3, range(-0.0012, 0.0012), Math.cos(t) * len / 3));
+      // Keep strands on the burger instead of trailing off the edge
+      const rr = Math.hypot(next.x, next.z);
+      if (rr > radius) {
+        next.x *= radius / rr;
+        next.z *= radius / rr;
+      }
+      pts.push(next);
     }
     const g = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 16, tube * range(0.8, 1.3), 5);
     buckets[i % colors.length].push(g);
@@ -1041,4 +1053,173 @@ export function paperTray({ name = 'Tray', bottom, top, height, color }) {
     new THREE.Mesh(geo, material({ color, roughness: 0.75 })),
     new THREE.Mesh(insideOf(geo), material({ color: '#f4f1ea', roughness: 0.85 })),
   );
+}
+
+/* ===================================================== salad & toppings */
+
+/** Round cut slice: 'tomato' (seedy flesh) or 'onion' (concentric rings). */
+export function roundSlice({ name, count = 1, radius, thickness = 0.004, kind = 'tomato', area = 0, y = 0, s = 0 }) {
+  const profile = resample([[0, 0], [radius * 0.97, 0], [radius, thickness * 0.5], [radius * 0.97, thickness], [0, thickness]], 24);
+  const maps = paintMaps({
+    w: TEX.small, h: TEX.small, point: (u, v) => [(u - 0.5) * radius * 2.2, 0, (v - 0.5) * radius * 2.2],
+    color: ([x, , z]) => {
+      const r = Math.hypot(x, z) / radius, a = Math.atan2(x, z);
+      const n = fbm(x * 90, 0, z * 90, 3, 300 + s);
+      if (kind === 'onion') {
+        // Concentric rings, pale inside with purple edges
+        const ring = ((r * 5 + n * 0.3) % 1 + 1) % 1;
+        const edge = 1 - smooth(0.0, 0.12, Math.min(ring, 1 - ring));
+        let c = mix(hex('#f7eef4'), hex('#e6cfe0'), n);
+        c = mix(c, hex('#9c3c77'), edge * 0.85);
+        return mix(c, hex('#8d2f6c'), smooth(0.9, 1, r));
+      }
+      // Tomato: pale core, seed pockets, red flesh, skin at the rim
+      const lobe = Math.abs(Math.sin(a * 2.5 + n * 2));
+      let c = mix(hex('#e4472f'), hex('#c62d19'), smooth(0.3, 0.9, n));
+      c = mix(c, hex('#f4c9a8'), smooth(0.25, 0.0, r) * 0.8); // core
+      const pocket = smooth(0.3, 0.55, r) * (1 - smooth(0.72, 0.82, r)) * lobe;
+      c = mix(c, hex('#f0dfa6'), pocket * 0.5);
+      if (pocket > 0.35 && hash3(Math.floor(x * 1200), 0, Math.floor(z * 1200), 301) > 0.9) c = hex('#f6efc6');
+      return mix(c, hex('#c9220f'), smooth(0.93, 1, r));
+    },
+    height: ([x, , z]) => fbm(x * 260, 0, z * 260, 2, 302 + s),
+  });
+  const mat = material({ ...maps, roughness: 0.35, clearcoat: 0.5 });
+  const g = new THREE.Group();
+  g.name = name;
+  for (let i = 0; i < count; i++) {
+    const geo = lathe(profile, 72, (p) => {
+      const a = Math.atan2(p.x, p.z);
+      const sc = 1 + (angNoise(a, 2, 303 + s + i) - 0.5) * 0.06;
+      p.x *= sc;
+      p.z *= sc;
+    });
+    // Planar UVs so the slice pattern reads from above
+    const pos = geo.attributes.position;
+    const uv = new Float32Array(pos.count * 2);
+    for (let k = 0; k < pos.count; k++) {
+      uv[k * 2] = pos.getX(k) / (radius * 2.2) + 0.5;
+      uv[k * 2 + 1] = pos.getZ(k) / (radius * 2.2) + 0.5;
+    }
+    geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+    const m = new THREE.Mesh(geo, mat);
+    const a = range(0, TAU), r = count > 1 ? Math.sqrt(rand()) * area : 0;
+    m.position.set(Math.sin(a) * r, y + i * thickness * 0.3, Math.cos(a) * r);
+    m.rotation.y = range(0, TAU);
+    g.add(m);
+  }
+  return g;
+}
+
+/** Sautéed mushroom slices (cap-and-stem silhouette, golden brown). */
+export function mushroomSlices({ name, count, radius, y = 0, height = 0.008, scale = 1 }) {
+  const shape = new THREE.Shape();
+  shape.moveTo(-0.0035, -0.008);
+  shape.lineTo(-0.003, -0.001);
+  shape.absellipse(0, 0, 0.011, 0.007, Math.PI, 0, true);
+  shape.lineTo(0.003, -0.001);
+  shape.lineTo(0.0035, -0.008);
+  shape.lineTo(-0.0035, -0.008);
+  const light = [], dark = [];
+  for (let i = 0; i < count; i++) {
+    const g = new THREE.ExtrudeGeometry(shape, { depth: 0.0024, bevelEnabled: true, bevelThickness: 0.0007, bevelSize: 0.0007, bevelSegments: 2, curveSegments: 12 });
+    const k = range(0.8, 1.25) * scale;
+    g.scale(k, k, 1);
+    const a = range(0, TAU), r = Math.sqrt(rand()) * radius;
+    place(g, { x: Math.sin(a) * r, y: y + range(0, height), z: Math.cos(a) * r, rx: -Math.PI / 2 + range(-0.55, 0.55), ry: range(0, TAU), rz: range(-0.35, 0.35) });
+    (rand() > 0.45 ? light : dark).push(g);
+  }
+  return node(
+    name,
+    new THREE.Mesh(mergeGeometries(light), material({ color: '#d8ab6a', roughness: 0.4, clearcoat: 0.45 })),
+    new THREE.Mesh(mergeGeometries(dark), material({ color: '#a97b43', roughness: 0.42, clearcoat: 0.45 })),
+  );
+}
+
+/** Triangular corn chips, lightly curved, dusted with seasoning. */
+export function nachoChips({ name, count, area, y = 0, s = 0 }) {
+  const maps = paintMaps({
+    w: TEX.small, h: TEX.small, point: (u, v) => [u * 0.05, 0, v * 0.05],
+    color: ([x, , z]) => {
+      const n = fbm(x * 180, 0, z * 180, 3, 310 + s);
+      let c = mix(hex('#e8873a'), hex('#c25a1c'), smooth(0.35, 0.75, n));
+      const sp = hash3(Math.floor(x * 2200), 0, Math.floor(z * 2200), 311);
+      if (sp > 0.93) c = hex('#8e3312');
+      else if (sp < 0.06) c = hex('#f3b96b');
+      return c;
+    },
+    height: ([x, , z]) => fbm(x * 500, 0, z * 500, 2, 312 + s),
+    strength: 2.5,
+  });
+  const mat = material({ ...maps, roughness: 0.55, side: THREE.DoubleSide, normalScale: 1.1 });
+  const g = new THREE.Group();
+  g.name = name;
+  for (let i = 0; i < count; i++) {
+    const w = range(0.026, 0.038);
+    const geo = new THREE.PlaneGeometry(w, w * 0.88, 10, 10);
+    const pos = geo.attributes.position;
+    const curl = range(-9, 9), tilt = range(-6, 6);
+    for (let k = 0; k < pos.count; k++) {
+      const x = pos.getX(k), yy = pos.getY(k);
+      // Taper the top into a triangle, then bow the chip
+      const t = (yy / (w * 0.88) + 0.5);
+      pos.setX(k, x * (1 - t * 0.92));
+      pos.setZ(k, x * x * curl + yy * yy * tilt);
+    }
+    geo.computeVertexNormals();
+    const m = new THREE.Mesh(geo, mat);
+    const a = range(0, TAU), r = Math.sqrt(rand()) * area;
+    m.position.set(Math.sin(a) * r, y + range(0, 0.008), Math.cos(a) * r);
+    m.rotation.set(-Math.PI / 2 + range(-0.8, 0.8), range(0, TAU), range(-0.5, 0.5));
+    g.add(m);
+  }
+  return g;
+}
+
+/** Grilled chicken fillet: pale, slightly domed, with charred bar marks. */
+export function grilledFillet({ name, width, depth, height, s = 0 }) {
+  const raw = [[0, 0], [0.86, 0], [0.99, height * 0.3], [1, height * 0.55], [0.94, height * 0.85], [0.6, height], [0, height]];
+  const profile = resample(raw, 36);
+  const geo = lathe(profile, 96, (p, n) => {
+    const a = Math.atan2(p.x, p.z), r = Math.hypot(p.x, p.z);
+    const sc = 1 + (angNoise(a, 2.6, 320 + s, 3) - 0.5) * 0.2 * smooth(0.4, 1, r);
+    p.x *= sc * (width / 2);
+    p.z *= sc * (depth / 2);
+    p.addScaledVector(n, (fbm(p.x * 60, p.y * 60, p.z * 60, 3, 321 + s) - 0.5) * 0.0035);
+  });
+  const point = (u, v) => {
+    const [x, y, z] = lathePoint(profile)(u, v);
+    return [x * (width / 2), y, z * (depth / 2)];
+  };
+  const maps = paintMaps({
+    w: TEX.color, h: 384, point,
+    color: ([x, y, z]) => {
+      const n = fbm(x * 110, y * 110, z * 110, 4, 322 + s);
+      let c = mix(hex('#efd8ad'), hex('#cfa468'), smooth(0.35, 0.8, n));
+      c = mix(c, hex('#a9712f'), smooth(0.7, 0.95, n) * 0.6);
+      // Charred grill bars across the top
+      const bar = 1 - smooth(0.05, 0.22, Math.min(((x * 0.9 + z * 0.4) / 0.02 % 1 + 1) % 1, 1 - (((x * 0.9 + z * 0.4) / 0.02 % 1 + 1) % 1)));
+      c = mix(c, hex('#5b3315'), bar * smooth(0.45, 0.8, y / height) * smooth(0.35, 0.65, n));
+      if (hash3(Math.floor(x * 1500), Math.floor(y * 1500), Math.floor(z * 1500), 323) > 0.985) c = hex('#2b2320'); // pepper
+      return c;
+    },
+    height: ([x, y, z]) => fbm(x * 320, y * 320, z * 320, 3, 324 + s),
+    strength: 2.2,
+  });
+  return node(name, new THREE.Mesh(geo, material({ ...maps, roughness: 0.5, clearcoat: 0.3, normalScale: 1 })));
+}
+
+/** Chunky chilli / keema meat sauce: a sauce layer studded with mince. */
+export function meatSauce({ name, radius, rimFrom, color = '#9e2f12', s = 0 }) {
+  const base = sauce({ name, radius, color, rimFrom, drips: 0.7, roughness: 0.5, s });
+  base.children[0].geometry.scale(1, 2.2, 1);
+  const parts = [];
+  for (let i = 0; i < 90; i++) {
+    const g = new THREE.SphereGeometry(range(0.0016, 0.0032), 6, 4);
+    const a = range(0, TAU), r = Math.sqrt(rand()) * radius * 0.92;
+    place(g, { x: Math.sin(a) * r, y: range(0.002, 0.009), z: Math.cos(a) * r, sy: 0.7 });
+    parts.push(g);
+  }
+  base.add(new THREE.Mesh(mergeGeometries(parts), material({ color: '#7d2a10', roughness: 0.55 })));
+  return base;
 }

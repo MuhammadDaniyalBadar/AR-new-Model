@@ -5,6 +5,7 @@
   --ink: #1f2a1e;
   --ink-2: #4e5b4a;
   --ketchup: #c7361f;
+  --on-primary: #ffffff; /* text on the primary button; set to --ink for light brand colours */
   --ketchup-press: #a52a16;
   --mustard: #e9b12b;
   --paper: #ffffff;

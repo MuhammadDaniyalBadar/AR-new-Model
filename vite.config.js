@@ -50,6 +50,7 @@ function restaurantHtml(r) {
     '--ketchup': t.primary,
     '--ketchup-press': t.primaryPress,
     '--mustard': t.accent,
+    '--on-primary': t.onPrimary,
     '--font': t.font,
     '--font-display': t.fontDisplay || t.font,
   };
