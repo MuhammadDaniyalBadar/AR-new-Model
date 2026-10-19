@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Monthly report{% endblock %}
+{% block content %}
+<div class="head">
+  <div>
+    <h1>Monthly report</h1>
+    <p class="muted">A summary ready to send on WhatsApp.</p>
+  </div>
+  <form method="get" class="inline">
+    <label class="visually-hidden" for="month">Month</label>
+    <select id="month" name="month" onchange="this.form.submit()">
+      {% for m in months %}
+        {% set key = m.start.strftime('%Y-%m') %}
+        <option value="{{ key }}" {% if key == chosen %}selected{% endif %}>{{ m.label }}{% if loop.first %} (so far){% endif %}</option>
+      {% endfor %}
+    </select>
+    <noscript><button class="button button--ghost" type="submit">Show</button></noscript>
+  </form>
+</div>
+
+{% if in_progress %}<p class="notice">This month isn't over yet, so the numbers are still growing.</p>{% endif %}
+
+<section class="card report">
+  <pre id="message" class="whatsapp">{{ message }}</pre>
+  <div class="row">
+    <a class="button" href="{{ link }}" target="_blank" rel="noopener">Send on WhatsApp</a>
+    <button class="button button--ghost" type="button" id="copy">Copy text</button>
+  </div>
+  {% if not restaurant.whatsapp %}
+    <p class="muted small">No WhatsApp number is saved for this restaurant, so WhatsApp will ask who to send it to.</p>
+  {% endif %}
+</section>
+{% endblock %}
+{% block scripts %}
+<script>
+  document.getElementById('copy').addEventListener('click', async (e) => {
+    try {
+      await navigator.clipboard.writeText(document.getElementById('message').textContent);
+      e.target.textContent = 'Copied';
+    } catch {
+      e.target.textContent = 'Select the text and copy it';
+    }
+  });
+</script>
+{% endblock %}

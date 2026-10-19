@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}Badges & banner{% endblock %}
+{% block content %}
+<div class="head">
+  <div>
+    <h1>Badges &amp; banner</h1>
+    <p class="muted">Changes show on customers' phones within a minute. No need to reprint QR codes.</p>
+  </div>
+</div>
+
+<form method="post" class="stack">
+  <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+
+  <section class="card form">
+    <h2>Promo banner</h2>
+    <p class="muted small">A short line shown at the top of the menu and every dish, e.g. “New: Fiery Gigantic is here 🔥” or “Happy hour 3–6 pm: 20% off Habibi Series”.</p>
+    <label class="switch">
+      <input type="checkbox" name="banner_active" {% if banner.active %}checked{% endif %}>
+      <span>Show the banner</span>
+    </label>
+    <label><span>Text <span class="muted">(up to 120 characters)</span></span>
+      <input name="banner_text" maxlength="120" value="{{ banner.text }}" placeholder="New: Fiery Gigantic is here 🔥">
+    </label>
+    <label>When customers tap it, open
+      <select name="banner_dish">
+        <option value="">Nothing (just text)</option>
+        {% for d in dishes %}
+          <option value="{{ d.id }}" {% if banner.dish_id == d.id %}selected{% endif %}>{{ d.name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <div class="row">
+      <label><span>From <span class="muted">(optional)</span></span>
+        <input type="datetime-local" name="banner_start" value="{{ banner.start_input }}">
+      </label>
+      <label><span>Until <span class="muted">(optional)</span></span>
+        <input type="datetime-local" name="banner_end" value="{{ banner.end_input }}">
+      </label>
+    </div>
+    <p class="small">
+      Right now customers see:
+      {% if live %}<span class="banner-preview">{{ live.text }}</span>{% else %}<span class="muted">no banner</span>{% endif %}
+    </p>
+  </section>
+
+  <section class="card">
+    <h2>Dishes</h2>
+    {% if not dishes %}
+      <p class="muted">Your dishes appear here after the menu has been opened once. Scan any QR code on your menu, then refresh this page.</p>
+    {% else %}
+    <p class="muted small">Badges help customers choose. “Not available today” keeps the dish viewable but tells customers it's out.</p>
+    <div class="table-wrap">
+      <table class="settings">
+        <thead>
+          <tr>
+            <th scope="col">Dish</th>
+            {% for key, label in BADGES.items() %}<th scope="col" class="center">{{ label }}</th>{% endfor %}
+            <th scope="col" class="center">Not available today</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for d in dishes %}
+          <tr>
+            <th scope="row">{{ d.name }}</th>
+            {% for key, label in BADGES.items() %}
+              <td class="center">
+                <input type="checkbox" name="badge-{{ d.id }}" value="{{ key }}" aria-label="{{ label }} for {{ d.name }}" {% if key in d.badges %}checked{% endif %}>
+              </td>
+            {% endfor %}
+            <td class="center">
+              <input type="checkbox" name="unavailable-{{ d.id }}" aria-label="{{ d.name }} not available today" {% if d.unavailable %}checked{% endif %}>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+  </section>
+
+  <div><button class="button" type="submit">Save changes</button></div>
+</form>
+{% endblock %}

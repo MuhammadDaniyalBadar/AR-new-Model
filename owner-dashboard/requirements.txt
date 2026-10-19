@@ -1,0 +1,5 @@
+Flask>=3.0,<4
+# Time zone data for Windows (Linux and macOS already have it).
+tzdata
+# Only needed to run the tests: pytest tests
+pytest

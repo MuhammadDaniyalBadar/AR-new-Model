@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% macro delta(pct) -%}
+  {%- if pct is not none -%}
+    <span class="delta {{ 'delta--up' if pct > 0 else ('delta--down' if pct < 0 else '') }}">
+      {{ '▲' if pct > 0 else ('▼' if pct < 0 else '■') }} {{ pct|abs }}%<span class="visually-hidden"> vs previous {{ days }} days</span>
+    </span>
+  {%- endif -%}
+{%- endmacro %}
+
+{% block content %}
+<div class="head">
+  <div>
+    <h1>How customers use your menu</h1>
+    <p class="muted">{{ s.period.start.strftime('%d %b') }} – {{ s.period.end.strftime('%d %b %Y') }} · changes compared with the {{ days }} days before</p>
+  </div>
+  <nav class="segmented" aria-label="Period">
+    {% for key, n in periods.items() %}
+      <a href="?days={{ key }}" {% if n == days %}aria-current="true"{% endif %}>{{ n }} days</a>
+    {% endfor %}
+  </nav>
+</div>
+
+{% if s.has_demo %}
+<p class="notice"><strong>Sample data.</strong> These numbers are generated for demonstration. Real customer scans replace them once the QR codes are in use.</p>
+{% endif %}
+
+{% if not s.views %}
+<section class="card empty">
+  <h2>No dish views yet in this period</h2>
+  <p class="muted">Numbers appear here as soon as customers scan the QR codes on your menu.</p>
+</section>
+{% else %}
+
+<section class="kpis">
+  <div class="card hero">
+    <p class="kpi__label">Dish views</p>
+    <p class="hero__value">{{ s.views|n }}</p>
+    <p class="kpi__foot">{{ delta(s.change.views) }} <span class="muted">{{ (s.views / s.period.days)|round|int }} a day</span></p>
+  </div>
+  <div class="card kpi">
+    <p class="kpi__label">Customers</p>
+    <p class="kpi__value">{{ s.visitors|n }}</p>
+    <p class="kpi__foot">{{ delta(s.change.visitors) }}</p>
+  </div>
+  <div class="card kpi">
+    <p class="kpi__label">QR code scans</p>
+    <p class="kpi__value">{{ s.scans|n }}</p>
+    <p class="kpi__foot">{{ delta(s.change.scans) }}</p>
+  </div>
+  <div class="card kpi">
+    <p class="kpi__label">Time per dish</p>
+    <p class="kpi__value">{{ s.avg_seconds|secs }}</p>
+    <p class="kpi__foot">{{ delta(s.change.avg_seconds) }} <span class="muted">average</span></p>
+  </div>
+  <div class="card kpi">
+    <p class="kpi__label">Take apart used</p>
+    <p class="kpi__value">{{ s.explode|n }}</p>
+    <p class="kpi__foot">{{ delta(s.change.explode) }}</p>
+  </div>
+  <div class="card kpi">
+    <p class="kpi__label">AR opened</p>
+    <p class="kpi__value">{{ s.ar|n }}</p>
+    <p class="kpi__foot">{{ delta(s.change.ar) }}</p>
+  </div>
+</section>
+
+<section class="card chart-card">
+  <h2>Dish views per day</h2>
+  <div class="chart chart--wide"><canvas id="daily" aria-label="Line chart of dish views per day" role="img"></canvas></div>
+</section>
+
+<div class="grid-2">
+  <section class="card chart-card">
+    <h2>Busiest hours</h2>
+    <p class="muted small">
+      {% if s.busiest %}Peak: <strong>{{ s.busiest.label }}</strong>{% endif %}
+    </p>
+    <div class="chart"><canvas id="hourly" aria-label="Bar chart of dish views by hour of day" role="img"></canvas></div>
+  </section>
+  <section class="card chart-card">
+    <h2>Most viewed dishes</h2>
+    <p class="muted small">Top {{ [s.dishes|selectattr('views')|list|length, 8]|min }}</p>
+    <div class="chart"><canvas id="top" aria-label="Bar chart of the most viewed dishes" role="img"></canvas></div>
+  </section>
+</div>
+
+{% if s.insights %}
+<section class="card">
+  <h2>Worth knowing</h2>
+  <ul class="insights">
+    {% for note in s.insights %}<li>{{ note }}</li>{% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+<section class="card">
+  <h2>Every dish</h2>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">Dish</th>
+          <th scope="col" class="num">Views</th>
+          <th scope="col" class="num">Customers</th>
+          <th scope="col" class="num">Avg. time</th>
+          <th scope="col" class="num">Took it apart</th>
+          <th scope="col" class="num">Read details</th>
+          <th scope="col" class="num">Opened AR</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for d in s.dishes %}
+        <tr>
+          <th scope="row">
+            {{ d.name }}
+            {% for b in d.badges %}<span class="chip">{{ BADGES[b] }}</span>{% endfor %}
+            {% if d.unavailable %}<span class="chip chip--muted">Not available</span>{% endif %}
+          </th>
+          <td class="num">{{ d.views|n }}</td>
+          <td class="num">{{ d.visitors|n }}</td>
+          <td class="num">{{ d.avg_seconds|secs if d.views else '–' }}</td>
+          <td class="num">{{ d.rate(d.explode) ~ '%' if d.views else '–' }}</td>
+          <td class="num">{{ d.rate(d.details) ~ '%' if d.views else '–' }}</td>
+          <td class="num">{{ d.rate(d.ar) ~ '%' if d.views else '–' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if s.views %}
+<script src="{{ url_for('static', filename='vendor/chart.umd.min.js') }}"></script>
+<script>
+  const DATA = {
+    daily: {{ s.daily|tojson }},
+    hourly: {{ s.hourly|tojson }},
+    top: {{ s.dishes|selectattr('views')|map(attribute='name')|list|tojson }}.slice(0, 8),
+    topViews: {{ s.dishes|selectattr('views')|map(attribute='views')|list|tojson }}.slice(0, 8),
+  };
+</script>
+<script src="{{ url_for('static', filename='charts.js') }}"></script>
+{% endif %}
+{% endblock %}

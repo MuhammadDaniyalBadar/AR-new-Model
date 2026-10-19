@@ -1,0 +1,121 @@
+/* Owner add-ons: badges, "not available today" and the promo banner.
+   Uses the restaurant's own theme colours from tokens.css. */
+
+.addon-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.dish__text > .addon-chips {
+  margin-bottom: var(--space-2);
+}
+
+.addon-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--paper);
+  color: var(--ink);
+  border: 1px solid var(--hairline);
+  font-size: var(--t-xs);
+  font-weight: 650;
+  line-height: 1.3;
+  white-space: nowrap;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.06);
+}
+.addon-chip--bestseller {
+  background: var(--ketchup);
+  border-color: var(--ketchup);
+  color: var(--on-primary);
+}
+.addon-chip--out {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+}
+
+.dish.addon-unavailable .dish__name,
+.dish.addon-unavailable .dish__summary,
+.dish.addon-unavailable .dish__price {
+  opacity: 0.55;
+}
+
+/* Promo banner */
+.addon-banner {
+  display: flex;
+  align-items: stretch;
+  border-radius: 14px;
+  background: var(--ink);
+  color: var(--paper);
+  overflow: hidden;
+  box-shadow: 0 4px 14px rgb(0 0 0 / 0.14);
+}
+.menu__header + .addon-banner {
+  margin: var(--space-4) 0 var(--space-2);
+}
+.addon-banner__main {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: var(--t-sm);
+  font-weight: 600;
+  text-align: left;
+}
+button.addon-banner__main {
+  cursor: pointer;
+}
+.addon-banner__text {
+  flex: 1;
+  min-width: 0;
+}
+.addon-banner__go {
+  flex: none;
+  color: var(--mustard);
+  font-size: 1.4em;
+  line-height: 1;
+}
+.addon-banner__close {
+  flex: none;
+  width: 44px;
+  border: 0;
+  border-left: 1px solid rgb(255 255 255 / 0.15);
+  background: none;
+  color: inherit;
+  font-size: 1.3rem;
+  cursor: pointer;
+  opacity: 0.8;
+}
+.addon-banner :focus-visible {
+  outline: 2px solid var(--mustard);
+  outline-offset: -3px;
+}
+
+/* On the dish screen: top-left of the 3D stage, clear of the reset button. */
+.addon-stage-top {
+  position: absolute;
+  top: var(--space-2);
+  left: var(--space-4);
+  right: calc(var(--tap) + var(--space-3) + var(--space-3));
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  pointer-events: none;
+}
+.addon-stage-top > * {
+  pointer-events: auto;
+  max-width: 100%;
+}
+.addon-stage-top[hidden] {
+  display: none;
+}

@@ -1,3 +1,4 @@
+import restaurant from '@restaurant';
 import { ProductRepository } from '../data/ProductRepository.js';
 import { ModelLoader } from '../viewer/ModelLoader.js';
 import { DebugPanel } from '../ui/DebugPanel.js';
@@ -13,6 +14,10 @@ export class App {
   constructor(root) {
     this.repo = new ProductRepository();
     this.router = new Router();
+    // Single-dish mode (restaurant.singleDish): the site only ever shows that
+    // one dish. There is no menu to go back to, whatever the URL says.
+    this.singleDish = restaurant.singleDish || null;
+    if (this.singleDish) document.documentElement.dataset.singleDish = '';
     this.toast = new Toast(root.querySelector('#toast'));
     this.debugPanel = this.router.debug ? new DebugPanel() : null;
 
@@ -37,7 +42,8 @@ export class App {
     return this.#route(this.router.current());
   }
 
-  async #route({ productId }) {
+  async #route(route) {
+    const productId = this.singleDish ?? route.productId;
     if (!productId) {
       this.viewer.close();
       this.landing.render(await this.repo.list());

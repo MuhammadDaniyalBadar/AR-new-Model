@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Owner dashboard{% endblock %}{% if restaurant %} · {{ restaurant.name }}{% endif %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  {% if restaurant %}
+  <header class="nav">
+    <div class="nav__brand">
+      <span class="nav__name">{{ restaurant.name }}</span>
+      <span class="nav__sub">3D menu · owner</span>
+    </div>
+    <nav class="nav__links">
+      {% set here = request.endpoint %}
+      <a href="{{ url_for('dashboard') }}" {% if here == 'dashboard' %}aria-current="page"{% endif %}>Dashboard</a>
+      <a href="{{ url_for('promotions') }}" {% if here == 'promotions' %}aria-current="page"{% endif %}>Badges &amp; banner</a>
+      <a href="{{ url_for('monthly_report') }}" {% if here == 'monthly_report' %}aria-current="page"{% endif %}>Monthly report</a>
+    </nav>
+    <form method="post" action="{{ url_for('logout') }}"><button class="link-button" type="submit">Log out</button></form>
+  </header>
+  {% endif %}
+
+  <main class="page">
+    {% with messages = get_flashed_messages() %}
+      {% for m in messages %}<p class="flash" role="status">{{ m }}</p>{% endfor %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </main>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

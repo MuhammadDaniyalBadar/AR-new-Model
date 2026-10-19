@@ -1,0 +1,48 @@
+/**
+ * The 4-Patty Monster: the burger for the Instagram page's QR code.
+ * Generic content (no restaurant brand). Uses the same model as the
+ * Burger Lab Quadra demo, renamed.
+ *
+ * explode.distance is a multiple of the model's largest dimension (its
+ * height, about 19 cm), so 0.115 ≈ 2.2 cm between layers.
+ */
+const step = 0.115;
+const patty = (n) => ({
+  id: `patty-${n}`,
+  name: `Patty ${n} & cheese`,
+  nodes: [`Patty_${n}`, `Cheese_${n}`],
+  explode: { direction: [0, 1, 0], distance: step * (n + 1) },
+  info: {
+    description: 'Grilled beef patty topped with a slice of melted cheddar.',
+    notes: n === 1 ? 'There are four of these, stacked.' : undefined,
+  },
+});
+
+export default {
+  id: 'monster',
+  name: 'The 4-Patty Monster',
+  category: null,
+  summary: 'Four beef patties, four cheeses, beef salami, onion rings and jalapeños.',
+  description:
+    'Four grilled beef patties with melted cheddar, beef salami, crispy onion rings, pickled jalapeños, lettuce, ketchup and mayo in a soft sesame bun. Take it apart to see every layer, or put it on your table in AR.',
+  price: null,
+
+  model: { src: '/models/monster.glb', iosSrc: null },
+  dimensions: { widthCm: 13, heightCm: 19 },
+
+  explode: { duration: 950, stagger: 50 },
+
+  components: [
+    { id: 'top-bun', name: 'Top bun', nodes: ['Top_Bun'], explode: { direction: [0, 1, 0], distance: step * 10 + 0.06 }, info: { description: 'Soft white bun with a sprinkle of sesame.' } },
+    { id: 'mayo', name: 'Mayo', nodes: ['Mayo'], explode: { direction: [0, 1, 0], distance: step * 9 }, info: { description: 'Creamy garlic mayo.' } },
+    { id: 'jalapenos', name: 'Jalapeños', nodes: ['Jalapenos'], explode: { direction: [0, 1, 0], distance: step * 8 }, info: { description: 'Pickled jalapeño slices for a little heat.' } },
+    { id: 'onion-rings', name: 'Onion rings', nodes: ['Onion_Rings'], explode: { direction: [0, 1, 0], distance: step * 7 }, info: { description: 'Two breaded, fried onion rings.' } },
+    { id: 'salami', name: 'Beef salami', nodes: ['Beef_Salami'], explode: { direction: [0, 1, 0], distance: step * 6 }, info: { description: 'One slice of beef salami.' } },
+    patty(4),
+    patty(3),
+    patty(2),
+    patty(1),
+    { id: 'lettuce', name: 'Lettuce & ketchup', nodes: ['Lettuce', 'Ketchup'], explode: { direction: [0, 1, 0], distance: step }, info: { description: 'Fresh lettuce leaf over a layer of ketchup.' } },
+    { id: 'bottom-bun', name: 'Bottom bun', nodes: ['Bottom_Bun'], explode: { direction: [0, 1, 0], distance: 0 }, info: { description: 'Toasted base of the same bun.' } },
+  ],
+};

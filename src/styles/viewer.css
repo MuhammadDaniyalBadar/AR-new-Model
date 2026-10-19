@@ -425,3 +425,11 @@
   font-weight: 750;
   letter-spacing: -0.015em;
 }
+
+/* Single-dish sites (restaurant.singleDish) have no menu to go back to. */
+html[data-single-dish] .topbar [data-action="back"] {
+  display: none;
+}
+html[data-single-dish] .topbar {
+  padding-left: var(--space-4);
+}

@@ -2,3 +2,11 @@ node_modules
 dist
 .DS_Store
 *.log
+
+# Owner dashboard (Python)
+owner-dashboard/.venv/
+owner-dashboard/*.db
+owner-dashboard/*.db-*
+__pycache__/
+.pytest_cache/
+.env.local

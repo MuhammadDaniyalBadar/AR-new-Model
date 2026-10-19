@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Log in{% endblock %}
+{% block content %}
+<section class="login">
+  <h1>Owner dashboard</h1>
+  <p class="muted">See how customers use your 3D menu, and manage badges and promotions.</p>
+  <form method="post" class="card form">
+    <label>Restaurant ID
+      <input name="restaurant" autocomplete="username" autocapitalize="none" placeholder="e.g. burgerlab" required>
+    </label>
+    <label>Password
+      <input name="password" type="password" autocomplete="current-password" required>
+    </label>
+    <button class="button" type="submit">Log in</button>
+  </form>
+</section>
+{% endblock %}
